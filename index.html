@@ -1,0 +1,2053 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>قاعتي | لوحة التحكم</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/svg+xml" href="icon.svg">
+<link rel="shortcut icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --mint-1:#DAE1FF;
+    --mint-2:#A9B4F5;
+    --teal-3:#7B85E8;
+    --teal-deep:#4D48C4;
+    --teal-dark:#2A2470;
+    --glass:rgba(255,255,255,0.55);
+    --glass-strong:rgba(255,255,255,0.75);
+    --glass-border:rgba(255,255,255,0.7);
+    --ink:#2A2470;
+    --ink-muted:#6E68A8;
+    --coral:#E8598F;
+    --coral-soft:#FBDCE9;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    min-height:100vh;
+    font-family:'Tajawal', sans-serif;
+    color:var(--ink);
+    background:linear-gradient(155deg, var(--mint-1) 0%, var(--mint-2) 45%, var(--teal-3) 100%);
+    position:relative;
+    overflow-x:hidden;
+    padding-bottom:100px;
+  }
+
+  .bubble{
+    position:fixed; border-radius:50%;
+    background:rgba(255,255,255,0.28);
+    filter:blur(1px); pointer-events:none; z-index:0;
+  }
+  .b1{ width:180px; height:180px; top:-60px; left:-50px; }
+  .b2{ width:90px; height:90px; top:120px; right:20px; background:rgba(255,255,255,.35); }
+  .b3{ width:260px; height:260px; bottom:60px; right:-100px; background:rgba(255,255,255,.18); }
+  .b4{ width:60px; height:60px; top:340px; left:30px; background:rgba(255,255,255,.4); }
+
+  main, header, .owner-row{ position:relative; z-index:1; }
+
+  /* ---------- Header ---------- */
+  header.hero{ text-align:center; padding:40px 24px 14px; }
+  .avatar-ring{
+    width:64px; height:64px; margin:0 auto 14px;
+    border-radius:50%;
+    background:var(--glass-strong);
+    border:1px solid var(--glass-border);
+    display:flex; align-items:center; justify-content:center;
+    font-size:1.6rem; font-weight:800; color:var(--teal-deep);
+    box-shadow:0 10px 26px rgba(18,61,51,.15);
+  }
+  .hero h1{ font-size:1.7rem; font-weight:800; color:var(--teal-dark); }
+  .hero p{ margin-top:4px; font-size:.85rem; color:var(--ink-muted); }
+
+  .owner-row{
+    max-width:900px; margin:18px auto 0;
+    display:flex; justify-content:space-between; align-items:center;
+    padding:0 24px; font-size:.84rem; color:var(--ink-muted);
+  }
+  .owner-row strong{ color:var(--teal-dark); font-weight:700; }
+  .logout{
+    color:var(--teal-deep); text-decoration:none;
+    font-weight:600; font-size:.8rem;
+    background:var(--glass); padding:7px 16px; border-radius:20px;
+    border:1px solid var(--glass-border);
+  }
+
+  /* ---------- Layout ---------- */
+  main{ max-width:900px; margin:0 auto; padding:28px 20px 0; }
+
+  /* ---------- Summary cards ---------- */
+  .cards{
+    display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin-bottom:26px;
+  }
+  .card{
+    background:var(--glass);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--glass-border);
+    border-radius:22px; padding:20px 20px;
+    box-shadow:0 16px 34px rgba(18,61,51,.12);
+  }
+  .card .label{ font-size:.78rem; color:var(--ink-muted); font-weight:500; }
+  .card .value{ font-size:1.5rem; font-weight:800; margin-top:8px; color:var(--teal-dark); font-variant-numeric:tabular-nums; }
+  .card .sub{ font-size:.72rem; color:var(--ink-muted); margin-top:5px; }
+  .card.accent .value{ color:var(--coral); }
+
+  .panel{
+    background:var(--glass);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--glass-border);
+    border-radius:26px; padding:24px;
+    box-shadow:0 16px 34px rgba(18,61,51,.12);
+  }
+
+  /* ---------- Calendar ---------- */
+  .cal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .cal-head h2{ color:var(--teal-dark); font-size:1.2rem; font-weight:800; }
+  .cal-nav{ display:flex; gap:6px; }
+  .cal-nav button{
+    width:30px; height:30px; border-radius:50%;
+    border:none; background:var(--glass-strong);
+    color:var(--teal-deep); font-size:1rem; cursor:pointer;
+  }
+  .weekdays{ display:grid; grid-template-columns:repeat(7,1fr); margin-bottom:8px; }
+  .weekdays span{ text-align:center; font-size:.72rem; color:var(--ink-muted); font-weight:700; padding-bottom:6px; }
+  .days{ display:grid; grid-template-columns:repeat(7,1fr); gap:6px; }
+  .day{
+    aspect-ratio:1/1; border-radius:14px;
+    display:flex; align-items:center; justify-content:center;
+    font-size:.82rem; font-weight:700; color:var(--ink);
+    background:rgba(255,255,255,0.35);
+    border:1px solid transparent; cursor:pointer;
+    transition:transform .12s ease;
+  }
+  .day:hover{ transform:translateY(-2px); }
+  .day.empty{ background:transparent; cursor:default; }
+  .day.empty:hover{ transform:none; }
+  .day.today{ border-color:var(--teal-deep); }
+  .day.booked{ color:#fff; background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); box-shadow:0 8px 18px rgba(30,122,99,.35); }
+  .day.pending{ color:var(--coral); background:var(--coral-soft); border:1.5px dashed var(--coral); }
+  .day.selected{ outline:2px solid var(--teal-dark); outline-offset:2px; }
+
+  .legend{ display:flex; gap:18px; margin-top:20px; flex-wrap:wrap; font-size:.76rem; color:var(--ink-muted); }
+  .legend span{ display:flex; align-items:center; gap:6px; }
+  .legend i{ width:12px; height:12px; border-radius:5px; display:inline-block; }
+  .legend i.booked{ background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); }
+  .legend i.pending{ background:var(--coral-soft); border:1.5px dashed var(--coral); }
+  .legend i.free{ background:rgba(255,255,255,0.35); border:1px solid rgba(255,255,255,.6); }
+
+  .hint-row{
+    display:flex; align-items:center; gap:8px;
+    margin-top:16px; padding:12px 14px;
+    background:rgba(255,255,255,.3); border-radius:14px;
+    font-size:.76rem; color:var(--ink-muted);
+  }
+
+  /* ---------- Bottom nav ---------- */
+  .bottom-nav{
+    position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+    display:flex; gap:8px;
+    background:var(--glass-strong);
+    backdrop-filter:blur(16px);
+    border:1px solid var(--glass-border);
+    border-radius:30px; padding:10px 18px;
+    box-shadow:0 16px 34px rgba(18,61,51,.18);
+    z-index:2;
+  }
+  .bottom-nav button{
+    width:40px; height:40px; border-radius:50%; border:none; background:transparent;
+    display:flex; align-items:center; justify-content:center;
+    color:var(--ink-muted); cursor:pointer;
+  }
+  .bottom-nav button.active{ background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); color:#fff; }
+  .bottom-nav svg{ width:19px; height:19px; }
+
+  @media (max-width: 760px){ .cards{ grid-template-columns:1fr; } }
+
+  /* ---------- Bottom sheets (shared) ---------- */
+  .overlay{
+    position:fixed; inset:0;
+    background:rgba(42,36,112,0.35);
+    backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+    display:none; align-items:flex-end; justify-content:center;
+    z-index:10;
+  }
+  .overlay.open{ display:flex; }
+  .sheet{
+    width:100%; max-width:460px; max-height:88vh; overflow-y:auto;
+    background:linear-gradient(165deg, #6259D6, #4A42B0);
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:28px 28px 0 0;
+    padding:22px 22px 28px;
+    box-shadow:0 -20px 50px rgba(42,36,112,.4);
+    animation:sheetUp .22s ease-out;
+  }
+  @keyframes sheetUp{ from{ transform:translateY(24px); opacity:0; } to{ transform:translateY(0); opacity:1; } }
+  .sheet-handle{ width:40px; height:4px; border-radius:4px; background:rgba(255,255,255,0.25); margin:0 auto 16px; }
+  .sheet-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
+  .sheet-head h3{ font-size:1.15rem; font-weight:800; color:#F1EEFB; }
+  .sheet-close{
+    width:32px; height:32px; border-radius:50%; border:none;
+    background:rgba(255,255,255,0.14); color:#F1EEFB; font-size:1rem; cursor:pointer;
+  }
+
+  .field{ margin-bottom:16px; }
+  .field label{ display:block; font-size:.78rem; font-weight:700; color:#D6D1F5; margin-bottom:7px; }
+  .field input, .field select{
+    width:100%; font-family:'Tajawal', sans-serif; font-size:.9rem; color:var(--ink);
+    background:rgba(255,255,255,0.92);
+    border:1px solid rgba(255,255,255,0.2);
+    border-radius:14px; padding:12px 14px; outline:none;
+  }
+  .field input:focus, .field select:focus{ border-color:#fff; background:#fff; }
+  .field-row{ display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+  .sheet-actions{ display:flex; gap:10px; margin-top:22px; }
+  .btn-primary{
+    flex:1; background:#fff;
+    color:var(--teal-deep); border:none; border-radius:16px; padding:14px;
+    font-family:'Tajawal', sans-serif; font-weight:800; font-size:.9rem; cursor:pointer;
+    box-shadow:0 12px 26px rgba(0,0,0,.2);
+  }
+  .btn-secondary{
+    background:rgba(255,255,255,0.14); color:#F1EEFB; border:none;
+    border-radius:16px; padding:14px 20px;
+    font-family:'Tajawal', sans-serif; font-weight:700; font-size:.9rem; cursor:pointer;
+  }
+  .btn-ghost{
+    width:100%; background:none; border:1.5px dashed rgba(255,255,255,0.5);
+    color:#F1EEFB; border-radius:16px; padding:14px;
+    font-family:'Tajawal', sans-serif; font-weight:800; font-size:.88rem; cursor:pointer;
+  }
+
+  /* ---------- Day details sheet ---------- */
+  .ds-title{ font-size:1.1rem; font-weight:800; color:#F1EEFB; margin-bottom:2px; }
+  .ds-date{ font-size:.78rem; color:#D6D1F5; margin-bottom:14px; }
+  .badge{ display:inline-block; padding:5px 14px; border-radius:20px; font-size:.72rem; font-weight:700; margin-bottom:16px; }
+  .badge.booked{ background:rgba(255,255,255,0.18); color:#DFFAF0; }
+  .badge.pending{ background:rgba(255,255,255,0.9); color:var(--coral); }
+  .badge.free{ background:rgba(255,255,255,0.16); color:#EDEBFA; }
+
+  .info-row{
+    display:flex; justify-content:space-between; padding:11px 0;
+    border-bottom:1px solid rgba(255,255,255,0.14); font-size:.84rem;
+  }
+  .info-row span:first-child{ color:#D6D1F5; }
+  .info-row span:last-child{ font-weight:700; color:#FDFCFF; }
+
+  .deposit-bar{ margin-top:16px; margin-bottom:6px; background:rgba(255,255,255,.18); border-radius:20px; height:8px; overflow:hidden; }
+  .deposit-fill{ height:100%; background:#fff; border-radius:20px; }
+  .deposit-caption{ font-size:.72rem; color:#D6D1F5; display:flex; justify-content:space-between; }
+
+  .empty-state{ text-align:center; padding:36px 10px; color:#D6D1F5; font-size:.84rem; line-height:1.8; }
+
+  .ds-section-title{
+    font-size:.78rem; font-weight:800; color:#D6D1F5;
+    margin:22px 0 10px;
+  }
+  .payment-history{ display:flex; flex-direction:column; gap:8px; margin-bottom:6px; }
+  .payment-row{
+    display:flex; align-items:center; justify-content:space-between;
+    background:rgba(255,255,255,.14); border-radius:14px; padding:10px 14px;
+  }
+  .payment-row .p-date{ font-size:.78rem; color:#D6D1F5; }
+  .payment-row .p-amount{ font-size:.86rem; font-weight:800; color:#FDFCFF; }
+  .receipt-icon-btn{
+    width:26px; height:26px; border-radius:50%; border:none; flex-shrink:0;
+    background:rgba(255,255,255,0.14); color:#F1EEFB; cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .receipt-icon-btn svg{ width:13px; height:13px; }
+
+  .inline-payment{
+    margin-top:16px; padding:16px; background:rgba(255,255,255,0.1);
+    border-radius:18px; border:1px dashed rgba(255,255,255,0.4);
+  }
+  .inline-payment .ip-label{ font-size:.78rem; font-weight:700; color:#F1EEFB; margin-bottom:10px; }
+  .inline-payment .field-row{ align-items:end; }
+  .inline-payment button{
+    width:100%; margin-top:10px;
+    background:var(--coral); color:#fff; border:none; border-radius:14px;
+    padding:12px; font-family:'Tajawal', sans-serif; font-weight:800; font-size:.86rem; cursor:pointer;
+  }
+
+  /* ---------- Record payment sheet ---------- */
+  .remaining-box{
+    background:var(--coral-soft);
+    border-radius:16px; padding:16px 18px; text-align:center; margin-bottom:18px;
+  }
+  .remaining-box .r-label{ font-size:.76rem; color:var(--coral); font-weight:700; }
+  .remaining-box .r-value{ font-size:1.5rem; font-weight:800; color:var(--coral); margin-top:4px; }
+  .btn-pay-full{
+    background:none; border:none; color:#EDEBFA;
+    font-family:'Tajawal', sans-serif; font-size:.78rem; font-weight:700;
+    text-decoration:underline; cursor:pointer; padding:0; margin-top:8px;
+  }
+
+  /* ---------- Agenda ---------- */
+  .search-row{ display:flex; gap:10px; margin-bottom:14px; }
+  .search-box{
+    flex:1; display:flex; align-items:center; gap:8px;
+    background:var(--glass); border:1px solid var(--glass-border);
+    border-radius:16px; padding:10px 14px;
+  }
+  .search-box svg{ width:16px; height:16px; color:var(--ink-muted); flex-shrink:0; }
+  .search-box input{
+    border:none; background:transparent; outline:none;
+    font-family:'Tajawal', sans-serif; font-size:.84rem; color:var(--ink); width:100%;
+  }
+  .month-select{
+    background:var(--glass); border:1px solid var(--glass-border);
+    border-radius:16px; padding:10px 12px;
+    font-family:'Tajawal', sans-serif; font-size:.8rem; color:var(--ink); font-weight:700;
+  }
+
+  .filter-chips{ display:flex; gap:8px; margin-bottom:18px; flex-wrap:wrap; }
+  .chip{
+    border:1px solid var(--glass-border); background:var(--glass); color:var(--ink-muted);
+    font-family:'Tajawal', sans-serif; font-size:.78rem; font-weight:700;
+    padding:8px 16px; border-radius:20px; cursor:pointer;
+  }
+  .chip.active{ background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); color:#fff; border-color:transparent; }
+
+  .agenda-list{ display:flex; flex-direction:column; gap:12px; }
+  .agenda-item{
+    display:flex; align-items:center; gap:14px;
+    background:var(--glass);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--glass-border); border-radius:20px; padding:14px 16px;
+    box-shadow:0 12px 28px rgba(18,61,51,.1); cursor:pointer;
+  }
+  .agenda-date{
+    flex-shrink:0; width:52px; height:52px; border-radius:14px;
+    background:var(--glass-strong);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    color:var(--teal-dark);
+  }
+  .agenda-date .num{ font-size:1.05rem; font-weight:800; line-height:1; }
+  .agenda-date .mon{ font-size:.62rem; color:var(--ink-muted); margin-top:2px; }
+  .agenda-item.booked .agenda-date{ background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); }
+  .agenda-item.booked .agenda-date .num, .agenda-item.booked .agenda-date .mon{ color:#fff; }
+  .agenda-item.pending .agenda-date{ background:var(--coral-soft); }
+  .agenda-item.pending .agenda-date .num, .agenda-item.pending .agenda-date .mon{ color:var(--coral); }
+
+  .agenda-info{ flex:1; min-width:0; }
+  .agenda-info .name{ font-size:.9rem; font-weight:800; color:var(--ink); }
+  .agenda-info .meta{ font-size:.76rem; color:var(--ink-muted); margin-top:3px; }
+  .agenda-status{ flex-shrink:0; font-size:.7rem; font-weight:700; padding:5px 12px; border-radius:16px; }
+  .agenda-item.booked .agenda-status{ background:rgba(30,122,99,0.15); color:var(--teal-deep); }
+  .agenda-item.pending .agenda-status{ background:var(--coral-soft); color:var(--coral); }
+
+  /* ---------- Earnings: month cards & detail ---------- */
+  .month-card{
+    display:flex; align-items:center; justify-content:space-between; gap:14px;
+    background:var(--glass);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--glass-border); border-radius:22px; padding:20px 20px;
+    box-shadow:0 14px 32px rgba(18,61,51,.12); cursor:pointer;
+  }
+  .month-card .mc-name{ font-size:1rem; font-weight:800; color:var(--teal-dark); }
+  .month-card .mc-sub{ font-size:.76rem; color:var(--ink-muted); margin-top:4px; }
+  .month-card .mc-total{ font-size:1.2rem; font-weight:800; color:var(--teal-deep); text-align:left; }
+  .month-card .mc-arrow{ color:var(--ink-muted); font-size:1.2rem; }
+
+  .month-detail-head{
+    display:flex; align-items:center; gap:12px; margin-bottom:18px;
+  }
+  .month-detail-head button{
+    width:36px; height:36px; border-radius:50%; border:none;
+    background:var(--glass-strong); color:var(--teal-deep); font-size:1.2rem; cursor:pointer;
+  }
+  .month-detail-head h2{ font-size:1.2rem; font-weight:800; color:var(--teal-dark); }
+
+  /* ---------- Settings ---------- */
+  .settings-group{ margin-bottom:22px; }
+  .settings-group h4{ font-size:.78rem; font-weight:800; color:var(--ink-muted); margin-bottom:10px; padding-right:4px; }
+  .settings-card{
+    background:var(--glass);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--glass-border); border-radius:22px; overflow:hidden;
+    box-shadow:0 12px 28px rgba(18,61,51,.1);
+  }
+  .settings-row{ display:flex; align-items:center; justify-content:space-between; padding:16px 18px; border-bottom:1px solid rgba(18,61,51,.08); }
+  .settings-row:last-child{ border-bottom:none; }
+  .settings-row .s-label{ font-size:.86rem; font-weight:700; color:var(--ink); }
+  .settings-row .s-value{ font-size:.82rem; color:var(--ink-muted); }
+  .settings-row input{
+    font-family:'Tajawal', sans-serif; font-size:.84rem; color:var(--ink); text-align:left;
+    background:transparent; border:none; outline:none; width:150px;
+  }
+  .lang-pills{ display:flex; gap:6px; }
+  .lang-pills button{
+    border:none; border-radius:14px; padding:6px 12px;
+    font-family:'Tajawal', sans-serif; font-size:.76rem; font-weight:700;
+    background:rgba(18,61,51,0.06); color:var(--ink-muted); cursor:pointer;
+  }
+  .lang-pills button.active{ background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); color:#fff; }
+  .toggle{
+    width:42px; height:24px; border-radius:20px; background:rgba(18,61,51,0.15);
+    position:relative; cursor:pointer; border:none; flex-shrink:0;
+  }
+  .toggle::after{
+    content:""; position:absolute; top:3px; right:3px; width:18px; height:18px; border-radius:50%;
+    background:#fff; transition:transform .15s ease;
+  }
+  .toggle.on{ background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); }
+  .toggle.on::after{ transform:translateX(-18px); }
+  .btn-danger{
+    width:100%; background:rgba(232,89,143,0.12); color:var(--coral); border:none;
+    border-radius:16px; padding:14px; font-family:'Tajawal', sans-serif;
+    font-weight:800; font-size:.86rem; cursor:pointer; margin-top:6px;
+  }
+
+  /* ---------- Login screen ---------- */
+  .login-screen{
+    position:fixed; inset:0; z-index:30;
+    background:linear-gradient(155deg, var(--mint-1) 0%, var(--mint-2) 45%, var(--teal-3) 100%);
+    display:flex; align-items:flex-start; justify-content:center;
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
+    padding:24px;
+  }
+  .login-card{
+    width:100%; max-width:380px;
+    text-align:center;
+    position:relative; z-index:1;
+  }
+  .login-avatar{
+    width:76px; height:76px; margin:0 auto 18px;
+    border-radius:50%;
+    background:var(--glass-strong);
+    border:1px solid var(--glass-border);
+    display:flex; align-items:center; justify-content:center;
+    font-size:2rem; font-weight:800; color:var(--teal-deep);
+    box-shadow:0 14px 32px rgba(18,61,51,.18);
+  }
+  .login-card h1{ font-size:1.6rem; font-weight:800; color:var(--teal-dark); }
+  .login-card p{ font-size:.85rem; color:var(--ink-muted); margin-top:4px; margin-bottom:22px; }
+
+  .login-lang-switch{
+    display:flex; justify-content:center; gap:8px; margin-bottom:20px;
+  }
+  .login-lang-switch button{
+    background:var(--glass); border:1.5px solid var(--glass-border);
+    border-radius:12px; padding:8px 13px;
+    font-family:'Tajawal', sans-serif; font-weight:800; font-size:.8rem; color:var(--ink-muted);
+    cursor:pointer; display:flex; align-items:center; gap:5px;
+  }
+  .login-lang-switch button.active{
+    background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); color:#fff; border-color:transparent;
+  }
+
+  .login-guide{
+    background:var(--glass); border:1.5px solid var(--glass-border);
+    border-radius:18px; padding:16px; margin-bottom:14px; text-align:right;
+  }
+  .lg-step{ display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .lg-step:last-child{ margin-bottom:0; }
+  .lg-num{
+    width:26px; height:26px; border-radius:50%; flex-shrink:0;
+    background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); color:#fff;
+    display:flex; align-items:center; justify-content:center; font-size:.78rem; font-weight:800;
+  }
+  .lg-text{ font-size:.84rem; font-weight:700; color:var(--ink); }
+
+  .login-contact-card{
+    background:linear-gradient(150deg, rgba(77,72,196,.1), rgba(77,72,196,.05));
+    border:1.5px solid rgba(77,72,196,.25);
+    border-radius:16px; padding:14px 16px; margin-bottom:22px;
+  }
+  .lcc-label{ font-size:.76rem; font-weight:700; color:var(--teal-deep); margin-bottom:6px; }
+  .lcc-number{ font-size:.86rem; font-weight:800; color:var(--ink); }
+
+  .login-form{
+    background:var(--glass);
+    backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
+    border:1px solid var(--glass-border);
+    border-radius:26px; padding:26px 22px;
+    box-shadow:0 16px 34px rgba(18,61,51,.12);
+    text-align:right;
+  }
+  .login-form .field{ margin-bottom:16px; }
+  .login-form label{ display:block; font-size:.78rem; font-weight:700; color:var(--ink-muted); margin-bottom:7px; }
+  .login-form input{
+    width:100%; font-family:'Tajawal', sans-serif; font-size:.9rem; color:var(--ink);
+    background:rgba(255,255,255,0.75);
+    border:1px solid var(--glass-border);
+    border-radius:14px; padding:13px 14px; outline:none;
+  }
+  .login-form input:focus{ border-color:var(--teal-deep); background:#fff; }
+
+  .login-submit{
+    width:100%; margin-top:6px;
+    background:linear-gradient(150deg, var(--teal-3), var(--teal-deep));
+    color:#fff; border:none; border-radius:16px; padding:15px;
+    font-family:'Tajawal', sans-serif; font-weight:800; font-size:.92rem; cursor:pointer;
+    box-shadow:0 14px 30px rgba(77,72,196,.35);
+  }
+  .login-forgot{
+    display:block; text-align:center; margin-top:16px;
+    font-size:.8rem; color:var(--teal-deep); text-decoration:none; font-weight:600;
+  }
+
+  .login-tabs{
+    display:flex; gap:8px; margin-bottom:20px;
+    background:var(--glass); border:1px solid var(--glass-border);
+    border-radius:16px; padding:5px;
+  }
+  .login-tabs button{
+    flex:1; border:none; background:transparent;
+    font-family:'Tajawal', sans-serif; font-weight:700; font-size:.85rem;
+    color:var(--ink-muted); padding:10px; border-radius:12px; cursor:pointer;
+  }
+  .login-tabs button.active{
+    background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); color:#fff;
+  }
+
+  .login-panel{ display:none; }
+  .login-panel.active{ display:block; }
+
+  .login-back{
+    display:flex; align-items:center; gap:8px; margin-bottom:14px;
+    font-size:.82rem; color:var(--ink-muted); cursor:pointer; background:none; border:none;
+    font-family:'Tajawal', sans-serif;
+  }
+  .login-note{
+    font-size:.76rem; color:var(--ink-muted); line-height:1.7; margin-bottom:16px;
+  }
+  .otp-inputs{ display:flex; gap:8px; justify-content:center; margin-bottom:18px; direction:ltr; }
+  .otp-inputs input{
+    width:44px; height:52px; text-align:center; font-size:1.2rem; font-weight:800;
+    background:rgba(255,255,255,0.75); border:1px solid var(--glass-border);
+    border-radius:12px; color:var(--ink); font-family:'Tajawal', sans-serif;
+  }
+  .otp-inputs input:focus{ border-color:var(--teal-deep); background:#fff; outline:none; }
+  /* ---------- Pages ---------- */
+  .page{ display:none; }
+  .page.active{ display:block; }
+
+  /* ---------- Export overlays (print-style documents) ---------- */
+  .export-icon-btn{
+    width:40px; height:40px; border-radius:14px; flex-shrink:0;
+    background:var(--glass); border:1px solid var(--glass-border);
+    display:flex; align-items:center; justify-content:center;
+    color:var(--teal-deep); cursor:pointer;
+  }
+  .export-icon-btn svg{ width:18px; height:18px; }
+
+  .print-overlay{
+    position:fixed; inset:0; z-index:20;
+    background:#EDEDF5;
+    display:none;
+    overflow-y:auto;
+    padding:0 0 100px;
+  }
+  .print-overlay.open{ display:block; }
+
+  .print-topbar{
+    position:sticky; top:0; z-index:1;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 18px;
+    background:rgba(237,237,245,0.9);
+    backdrop-filter:blur(10px);
+  }
+  .print-topbar button{
+    width:34px; height:34px; border-radius:50%; border:none;
+    background:#fff; color:#4D4A6B; font-size:1rem; cursor:pointer;
+    box-shadow:0 6px 16px rgba(30,27,58,.12);
+  }
+  .print-topbar .print-btn{
+    width:auto; border-radius:20px; padding:0 18px;
+    background:var(--teal-deep); color:#fff;
+    font-family:'Tajawal', sans-serif; font-weight:800; font-size:.82rem;
+    display:flex; align-items:center; gap:6px;
+  }
+
+  .doc{
+    max-width:520px; margin:10px auto 0;
+    background:#fff; border-radius:10px;
+    box-shadow:0 16px 40px rgba(30,27,58,.14);
+    padding:30px 26px;
+  }
+  .doc-header{
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom:3px solid var(--teal-deep);
+    padding-bottom:16px; margin-bottom:22px;
+  }
+  .doc-header .brand{ display:flex; align-items:center; gap:10px; }
+  .doc-header .mark{
+    width:38px; height:38px; border-radius:50%;
+    background:#EEEDFB; color:var(--teal-deep);
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:1.05rem;
+  }
+  .doc-header h1{ font-size:1.02rem; font-weight:800; color:#1E1B3A; }
+  .doc-header .sub{ font-size:.7rem; color:#6B6785; margin-top:1px; }
+  .doc-header .meta{ text-align:left; font-size:.68rem; color:#6B6785; line-height:1.6; }
+
+  .doc-title{ text-align:center; margin-bottom:22px; }
+  .doc-title h2{ font-size:1.1rem; font-weight:800; color:#1E1B3A; }
+  .doc-title p{ font-size:.76rem; color:#6B6785; margin-top:3px; }
+
+  .doc table{ width:100%; border-collapse:collapse; font-size:.8rem; }
+  .doc thead th{
+    background:#EEEDFB; color:var(--teal-deep);
+    font-weight:700; padding:9px 8px; text-align:center;
+    border-bottom:2px solid var(--teal-deep);
+  }
+  .doc tbody td{ padding:11px 8px; text-align:center; border-bottom:1px solid #E3E1F2; color:#1E1B3A; }
+  .doc tbody tr:nth-child(even){ background:#FAFAFD; }
+  .status-pill{ display:inline-block; padding:3px 10px; border-radius:12px; font-size:.68rem; font-weight:700; }
+  .status-pill.booked{ background:rgba(30,122,99,.12); color:#1E7A63; }
+  .status-pill.pending{ background:rgba(232,89,143,.12); color:var(--coral); }
+
+  .doc-footer{
+    margin-top:24px; padding-top:14px; border-top:1px solid #E3E1F2;
+    display:flex; justify-content:space-between; font-size:.68rem; color:#6B6785;
+  }
+
+  .slip{ border:2px dashed #E3E1F2; border-radius:16px; padding:24px; text-align:center; }
+  .slip .authorize{ font-size:.75rem; font-weight:700; color:var(--teal-deep); letter-spacing:.5px; margin-bottom:6px; }
+  .slip .date-big{ font-size:1.9rem; font-weight:800; margin-bottom:2px; color:#1E1B3A; }
+  .slip .weekday{ font-size:.8rem; color:#6B6785; margin-bottom:20px; }
+  .slip-row{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:13px 4px; border-bottom:1px solid #E3E1F2; text-align:right;
+  }
+  .slip-row span:first-child{ font-size:.76rem; color:#6B6785; }
+  .slip-row span:last-child{ font-size:.9rem; font-weight:700; color:#1E1B3A; }
+  .slip .badge-big{
+    display:inline-block; margin-top:18px; padding:8px 20px;
+    border-radius:20px; font-weight:800; font-size:.82rem;
+    background:rgba(30,122,99,.12); color:#1E7A63;
+  }
+  .slip .badge-big.pending{ background:rgba(232,89,143,.12); color:var(--coral); }
+  .slip .note{ margin-top:20px; font-size:.7rem; color:#6B6785; line-height:1.7; }
+
+  .receipt-highlight{
+    margin-top:16px; padding:16px; border-radius:12px; text-align:center;
+  }
+  .receipt-highlight.paid-full{ background:rgba(30,122,99,.1); color:#1E7A63; }
+  .receipt-highlight.paid-partial{ background:rgba(232,89,143,.1); color:var(--coral); }
+  .receipt-highlight .rh-label{ font-size:.74rem; font-weight:700; }
+  .receipt-highlight .rh-value{ font-size:1.15rem; font-weight:800; margin-top:4px; }
+
+  @media print{
+    body > *:not(.print-overlay){ display:none !important; }
+    .print-overlay{ position:static; background:#fff; padding:0; }
+    .print-topbar{ display:none !important; }
+    .no-print{ display:none !important; }
+    .doc{ box-shadow:none; margin:0; max-width:100%; }
+  }
+</style>
+</head>
+<body>
+
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <div class="login-lang-switch" id="loginLangSwitch">
+      <button class="active" data-loginlang="ar">🇲🇷 AR</button>
+      <button data-loginlang="fr">🇫🇷 FR</button>
+      <button data-loginlang="en">🇬🇧 EN</button>
+    </div>
+
+    <!-- Guide steps + contact info, shown above the logo — matches StadBook's login order -->
+    <div class="login-guide" id="loginGuide">
+      <div class="lg-step">
+        <div class="lg-num">1</div>
+        <div class="lg-text" data-login-i18n="guideStep1">أنشئ/ي حسابك</div>
+      </div>
+      <div class="lg-step">
+        <div class="lg-num">2</div>
+        <div class="lg-text" data-login-i18n="guideStep2">تواصل/ي معنا عبر واتساب</div>
+      </div>
+      <div class="lg-step">
+        <div class="lg-num">3</div>
+        <div class="lg-text" data-login-i18n="guideStep3">فعّل/ي حسابك وابدأ/ي الحجز!</div>
+      </div>
+    </div>
+    <div class="login-contact-card">
+      <div class="lcc-label" data-login-i18n="contactLabel">📞 تحتاج/ين إلى الوصول؟ تواصل/ي معنا!</div>
+      <div class="lcc-number">WhatsApp: <span id="loginGuideWhatsapp">+222 XX XX XX XX</span></div>
+    </div>
+
+    <div class="login-avatar" style="background:none;">
+      <svg viewBox="0 0 512 512" width="40" height="40" style="display:block;">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#8791E8"/>
+      <stop offset="100%" stop-color="#4D48C4"/>
+    </linearGradient>
+    <radialGradient id="bulbGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFF6D8" stop-opacity="0.9"/>
+      <stop offset="40%" stop-color="#FFD34D" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#FFD34D" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="diamondGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C5F1FF"/>
+      <stop offset="45%" stop-color="#4FC3F7"/>
+      <stop offset="100%" stop-color="#1565C0"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="512" height="512" rx="115" fill="url(#bg)"/>
+
+  <!-- gold string lights, hanging from the top only — not reaching the bottom -->
+  <g stroke="#E8B923" stroke-width="2.5" opacity="0.85">
+    <line x1="70"  y1="0" x2="70"  y2="300"/>
+    <line x1="150" y1="0" x2="150" y2="360"/>
+    <line x1="230" y1="0" x2="230" y2="260"/>
+    <line x1="310" y1="0" x2="310" y2="260"/>
+    <line x1="390" y1="0" x2="390" y2="360"/>
+    <line x1="460" y1="0" x2="460" y2="300"/>
+  </g>
+
+  <!-- bulbs: soft glow halo + bright core + tiny highlight, for a more realistic lit look -->
+  <g id="bulbs">
+    <!-- string 1 -->
+    <g><circle cx="70" cy="60"  r="20" fill="url(#bulbGlow)"/><circle cx="70" cy="60"  r="8" fill="#FFCA3A"/><circle cx="70" cy="57"  r="2.5" fill="#FFF9E6"/></g>
+    <g><circle cx="70" cy="160" r="20" fill="url(#bulbGlow)"/><circle cx="70" cy="160" r="8" fill="#FFCA3A"/><circle cx="70" cy="157" r="2.5" fill="#FFF9E6"/></g>
+    <g><circle cx="70" cy="260" r="20" fill="url(#bulbGlow)"/><circle cx="70" cy="260" r="8" fill="#FFCA3A"/><circle cx="70" cy="257" r="2.5" fill="#FFF9E6"/></g>
+    <!-- string 2 -->
+    <g><circle cx="150" cy="90"  r="20" fill="url(#bulbGlow)"/><circle cx="150" cy="90"  r="8" fill="#FFCA3A"/><circle cx="150" cy="87"  r="2.5" fill="#FFF9E6"/></g>
+    <g><circle cx="150" cy="200" r="20" fill="url(#bulbGlow)"/><circle cx="150" cy="200" r="8" fill="#FFCA3A"/><circle cx="150" cy="197" r="2.5" fill="#FFF9E6"/></g>
+    <g><circle cx="150" cy="320" r="20" fill="url(#bulbGlow)"/><circle cx="150" cy="320" r="8" fill="#FFCA3A"/><circle cx="150" cy="317" r="2.5" fill="#FFF9E6"/></g>
+    <!-- string 3 -->
+    <g><circle cx="230" cy="50"  r="20" fill="url(#bulbGlow)"/><circle cx="230" cy="50"  r="8" fill="#FFCA3A"/><circle cx="230" cy="47"  r="2.5" fill="#FFF9E6"/></g>
+    <g><circle cx="230" cy="150" r="20" fill="url(#bulbGlow)"/><circle cx="230" cy="150" r="8" fill="#FFCA3A"/><circle cx="230" cy="147" r="2.5" fill="#FFF9E6"/></g>
+    <!-- string 4 -->
+    <g><circle cx="310" cy="50"  r="20" fill="url(#bulbGlow)"/><circle cx="310" cy="50"  r="8" fill="#FFCA3A"/><circle cx="310" cy="47"  r="2.5" fill="#FFF9E6"/></g>
+    <g><circle cx="310" cy="150" r="20" fill="url(#bulbGlow)"/><circle cx="310" cy="150" r="8" fill="#FFCA3A"/><circle cx="310" cy="147" r="2.5" fill="#FFF9E6"/></g>
+    <!-- string 5 -->
+    <g><circle cx="390" cy="90"  r="20" fill="url(#bulbGlow)"/><circle cx="390" cy="90"  r="8" fill="#FFCA3A"/><circle cx="390" cy="87"  r="2.5" fill="#FFF9E6"/></g>
+    <g><circle cx="390" cy="200" r="20" fill="url(#bulbGlow)"/><circle cx="390" cy="200" r="8" fill="#FFCA3A"/><circle cx="390" cy="197" r="2.5" fill="#FFF9E6"/></g>
+    <g><circle cx="390" cy="320" r="20" fill="url(#bulbGlow)"/><circle cx="390" cy="320" r="8" fill="#FFCA3A"/><circle cx="390" cy="317" r="2.5" fill="#FFF9E6"/></g>
+    <!-- string 6 -->
+    <g><circle cx="460" cy="60"  r="20" fill="url(#bulbGlow)"/><circle cx="460" cy="60"  r="8" fill="#FFCA3A"/><circle cx="460" cy="57"  r="2.5" fill="#FFF9E6"/></g>
+    <g><circle cx="460" cy="160" r="20" fill="url(#bulbGlow)"/><circle cx="460" cy="160" r="8" fill="#FFCA3A"/><circle cx="460" cy="157" r="2.5" fill="#FFF9E6"/></g>
+    <g><circle cx="460" cy="260" r="20" fill="url(#bulbGlow)"/><circle cx="460" cy="260" r="8" fill="#FFCA3A"/><circle cx="460" cy="257" r="2.5" fill="#FFF9E6"/></g>
+  </g>
+
+  <!-- wedding arch / gateway -->
+  <path d="M170,404 L170,258 A86,86 0 0 1 342,258 L342,404 L314,404 L314,268 A58,58 0 0 0 198,268 L198,404 Z" fill="#FFFFFF"/>
+  <rect x="146" y="404" width="220" height="14" rx="7" fill="#FFFFFF"/>
+
+  <!-- red carpet with gold borders, leading out from the entrance all the way to the bottom edge -->
+  <path d="M180,418 L332,418 L382,512 L130,512 Z" fill="#C41E3A" stroke="#E8B923" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M191,420 L151,510" stroke="#E8B923" stroke-width="2.5" opacity="0.85"/>
+  <path d="M321,420 L361,510" stroke="#E8B923" stroke-width="2.5" opacity="0.85"/>
+
+  <!-- small gold engagement rings, replacing the old dot -->
+  <g fill="none" stroke="#E8B923" stroke-width="5">
+    <circle cx="245" cy="196" r="15"/>
+    <circle cx="267" cy="196" r="15"/>
+  </g>
+
+  <!-- small faceted blue diamond, mounted on top of the right ring -->
+  <path d="M267,171 L275,180 L267,189 L259,180 Z" fill="url(#diamondGrad)" stroke="#0D47A1" stroke-width="1"/>
+  <path d="M267,171 L267,189 M259,180 L275,180" stroke="#E3F7FF" stroke-width="1" opacity="0.7"/>
+  <path d="M262,175 L264,177 L262,179 L260,177 Z" fill="#FFFFFF" opacity="0.9"/>
+</svg>
+    </div>
+    <h1 data-login-i18n="brand">قاعتي</h1>
+    <p data-login-i18n="tagline">منصة لتسيير قاعات الأفراح والمناسبات</p>
+
+    <!-- Panel 1: login / signup tabs -->
+    <div class="login-panel active" id="panelAuth">
+      <div class="login-tabs">
+        <button class="active" data-tab="login" data-login-i18n="tabLogin">تسجيل الدخول</button>
+        <button data-tab="signup" data-login-i18n="tabSignup">حساب جديد</button>
+      </div>
+
+      <form class="login-form" id="loginForm">
+        <div class="field">
+          <label data-login-i18n="fieldPhone">رقم الهاتف</label>
+          <input type="tel" id="loginPhone" placeholder="06 XX XX XX XX" required>
+        </div>
+        <div class="field">
+          <label data-login-i18n="fieldPassword">كلمة المرور</label>
+          <input type="password" id="loginPassword" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="login-submit" data-login-i18n="btnLogin">تسجيل الدخول</button>
+      </form>
+      <a href="#" class="login-forgot" id="forgotLink" data-login-i18n="forgotLink">نسيت كلمة المرور؟</a>
+
+      <form class="login-form" id="signupForm" style="display:none;">
+        <div class="field">
+          <label data-login-i18n="fieldHallName">اسم القاعة</label>
+          <input type="text" id="signupHallName" placeholder="مثال: قاعة النور" required>
+        </div>
+        <div class="field">
+          <label data-login-i18n="fieldPhone">رقم الهاتف</label>
+          <input type="tel" id="signupPhone" placeholder="06 XX XX XX XX" required>
+        </div>
+        <div class="field">
+          <label data-login-i18n="fieldEmail">البريد الإلكتروني</label>
+          <input type="email" id="signupEmail" placeholder="example@email.com" required>
+        </div>
+        <div class="field">
+          <label data-login-i18n="fieldPassword">كلمة المرور</label>
+          <input type="password" id="signupPassword" placeholder="••••••••" required>
+        </div>
+        <div class="field">
+          <label data-login-i18n="fieldPasswordConfirm">تأكيد كلمة المرور</label>
+          <input type="password" id="signupPasswordConfirm" placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="login-submit" data-login-i18n="btnSignup">إنشاء الحساب</button>
+      </form>
+    </div>
+
+    <!-- Panel 2: pending approval, shown right after signup (full block, matches StadBook) -->
+    <div class="login-panel" id="panelPending">
+      <div class="login-form" style="text-align:center;">
+        <div style="font-size:2.4rem; margin-bottom:6px;">⏳</div>
+        <h3 style="font-size:1.05rem; font-weight:800; color:var(--teal-dark); margin-bottom:8px;" data-login-i18n="pendingTitle">الحساب في انتظار التفعيل</h3>
+        <div class="login-note" data-login-i18n="pendingDesc">
+          تم إنشاء حسابك. سيتم تفعيله خلال 24 ساعة بعد تأكيد الدفع.
+        </div>
+        <div style="background:var(--coral-soft); border-radius:16px; padding:16px; margin-bottom:16px;">
+          <div style="font-size:.76rem; color:var(--coral); font-weight:700; margin-bottom:4px;" data-login-i18n="pendingContact">تواصل معنا عبر واتساب لتفعيل اشتراكك</div>
+          <div style="font-size:1.05rem; font-weight:800; color:var(--ink);" id="pendingWhatsapp">+222 XX XX XX XX</div>
+        </div>
+        <button type="button" class="btn-secondary" data-back="panelAuth" style="width:100%;" data-login-i18n="backToLogin">→ العودة لتسجيل الدخول</button>
+      </div>
+    </div>
+
+    <!-- Panel 3: forgot password — WhatsApp contact only, no self-service (matches StadBook exactly) -->
+    <div class="login-panel" id="panelForgotEmail">
+      <div class="login-form">
+        <div style="font-size:1rem; font-weight:800; color:var(--teal-dark); margin-bottom:16px;" data-login-i18n="forgotHeading">نسيت كلمة المرور؟</div>
+        <div style="background:var(--glass-strong); border-radius:16px; padding:20px; text-align:center; margin-bottom:16px;">
+          <div style="font-size:1.8rem; margin-bottom:8px;">📞</div>
+          <div class="login-note" style="margin-bottom:12px;" data-login-i18n="forgotDesc">تواصل معنا على واتساب وسنقوم بإعادة تعيين كلمة مرورك.</div>
+          <div style="font-size:.85rem; font-weight:700; color:var(--teal-deep);">WhatsApp</div>
+          <div style="font-size:1.15rem; font-weight:800; color:var(--ink); margin-top:4px;" id="forgotWhatsapp">+222 XX XX XX XX</div>
+        </div>
+        <button type="button" class="btn-secondary" data-back="panelAuth" style="width:100%;" data-login-i18n="backToLoginArrow">→ رجوع لتسجيل الدخول</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="bubble b1"></div>
+<div class="bubble b2"></div>
+<div class="bubble b3"></div>
+<div class="bubble b4"></div>
+
+<header class="hero">
+  <div class="avatar-ring" id="avatarRingLetter">ق</div>
+  <h1 id="dashboardHallName">قاعتي</h1>
+  <p>لتنظيم الأفراح والمناسبات</p>
+</header>
+
+<div class="owner-row">
+  <span>أهلاً، <strong>سعيدة</strong></span>
+  <a href="#" class="logout" id="logoutLink1">تسجيل الخروج</a>
+</div>
+
+<main>
+  <div class="page active" id="page-home">
+    <div class="cards" style="grid-template-columns:1fr 1fr;">
+      <div class="card">
+        <div class="label">المداخيل هذا الشهر</div>
+        <div class="value" id="homeRevenueValue">0 اوقية</div>
+        <div class="sub" id="homeRevenueSub">من 0 حجوزات</div>
+      </div>
+      <div class="card">
+        <div class="label">حجوزات هذا الشهر</div>
+        <div class="value" id="homeBookingsValue">0</div>
+        <div class="sub" id="homeBookingsSub">0 غير مكتملة الدفع</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="cal-head">
+        <h2 id="calMonthTitle">أغسطس 2026</h2>
+        <div class="cal-nav">
+          <button id="prevMonth" aria-label="الشهر السابق">‹</button>
+          <button id="nextMonth" aria-label="الشهر التالي">›</button>
+        </div>
+      </div>
+      <div class="weekdays">
+        <span>أحد</span><span>إثنين</span><span>ثلاثاء</span><span>أربعاء</span><span>خميس</span><span>جمعة</span><span>سبت</span>
+      </div>
+      <div class="days" id="days"></div>
+      <div class="legend">
+        <span><i class="free"></i> متاح</span>
+        <span><i class="pending"></i> متبقي مبلغ</span>
+        <span><i class="booked"></i> محجوز</span>
+      </div>
+      <div class="hint-row">اضغط على أي تاريخ لعرض التفاصيل أو إضافة حجز جديد</div>
+    </div>
+  </div><!-- /page-home -->
+
+  <div class="page" id="page-agenda">
+    <div class="search-row">
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+        <input type="tel" id="phoneSearch" placeholder="ابحث برقم الهاتف">
+      </div>
+      <select class="month-select" id="monthSelect">
+        <option value="all">كل الأشهر</option>
+      </select>
+      <button class="export-icon-btn" id="openMonthlyExport" aria-label="تصدير الجدول للحارس">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+      </button>
+    </div>
+    <div class="filter-chips" id="statusChips">
+      <button class="chip active" data-filter="all">الكل</button>
+      <button class="chip" data-filter="booked">محجوز</button>
+      <button class="chip" data-filter="pending">متبقي مبلغ</button>
+    </div>
+    <div id="agendaCount" style="font-size:.78rem; color:var(--ink-muted); margin-bottom:12px;"></div>
+    <div class="agenda-list" id="agendaList"></div>
+  </div><!-- /page-agenda -->
+
+  <div class="page" id="page-earnings">
+
+    <div class="cards" style="grid-template-columns:1fr 1fr; margin-bottom:18px;">
+      <div class="card">
+        <div class="label" id="earningsCardLabel">إجمالي المداخيل</div>
+        <div class="value" id="earningsTotal">0 اوقية</div>
+        <div class="sub" id="earningsCount">0 حجوزات</div>
+      </div>
+      <div class="card accent">
+        <div class="label">المتبقي من العروبين</div>
+        <div class="value" id="earningsRemaining">0 اوقية</div>
+        <div class="sub">عبر الحجوزات المعلقة</div>
+      </div>
+    </div>
+
+    <!-- Level 1: month cards -->
+    <div id="monthCardsView">
+      <div class="agenda-list" id="monthCardsList"></div>
+    </div>
+
+    <!-- Level 2: single month detail -->
+    <div id="monthDetailView" style="display:none;">
+      <div class="month-detail-head">
+        <button id="backToMonths" aria-label="رجوع">‹</button>
+        <h2 id="monthDetailTitle">أغسطس 2026</h2>
+      </div>
+
+      <div class="ds-section-title" style="color:var(--ink-muted);">الحجوزات</div>
+      <div class="agenda-list" id="monthBookingsList"></div>
+    </div>
+  </div><!-- /page-earnings -->
+
+  </div><!-- /page-earnings -->
+
+  <div class="page" id="page-settings">
+    <div class="settings-group">
+      <h4>معلومات القاعة</h4>
+      <div class="settings-card">
+        <div class="settings-row"><span class="s-label">اسم القاعة</span><input type="text" id="settingsHallName" value="قاعتي"></div>
+        <div class="settings-row"><span class="s-label">رقم الهاتف</span><input type="tel" value="0522 12 34 56"></div>
+        <div class="settings-row"><span class="s-label">العنوان</span><input type="text" value="الدار البيضاء"></div>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <h4>التفضيلات</h4>
+      <div class="settings-card">
+        <div class="settings-row">
+          <span class="s-label">اللغة</span>
+          <div class="lang-pills">
+            <button class="active">ع</button><button>Fr</button><button>En</button>
+          </div>
+        </div>
+        <div class="settings-row"><span class="s-label">تذكير المناسبات القادمة (قبل 3 أيام)</span><button class="toggle on" aria-label="تفعيل تذكير المناسبات"></button></div>
+        <div class="settings-row"><span class="s-label">تذكير العروبين المعلقة</span><button class="toggle on" aria-label="تفعيل التذكير"></button></div>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <h4>كلمة المرور</h4>
+      <div class="settings-card" style="padding:16px;">
+        <button class="btn-secondary" id="sendResetLinkBtn" style="width:100%; background:rgba(77,72,196,.12); color:var(--teal-deep);">إرسال رابط إعادة تعيين كلمة المرور</button>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <h4>الحساب</h4>
+      <div class="settings-card">
+        <div class="settings-row"><span class="s-label">سعيدة</span><span class="s-value">مالكة القاعة</span></div>
+      </div>
+      <button class="btn-danger" id="logoutLink2">تسجيل الخروج</button>
+    </div>
+  </div><!-- /page-settings -->
+</main>
+
+<div class="bottom-nav">
+  <button class="active" data-page="home" aria-label="الرئيسية">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>
+  </button>
+  <button data-page="agenda" aria-label="الأجندة">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+  </button>
+  <button data-page="earnings" aria-label="المداخيل">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h3.2a1.8 1.8 0 010 3.6h-2a1.8 1.8 0 000 3.6h3.3"/></svg>
+  </button>
+  <button data-page="settings" aria-label="الإعدادات">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.55V21a2 2 0 11-4 0v-.09a1.7 1.7 0 00-1-1.55 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.7 1.7 0 00.34-1.87 1.7 1.7 0 00-1.55-1H3a2 2 0 110-4h.09a1.7 1.7 0 001.55-1 1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06a1.7 1.7 0 001.87.34H9a1.7 1.7 0 001-1.55V3a2 2 0 114 0v.09a1.7 1.7 0 001 1.55 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.34 1.87V9a1.7 1.7 0 001.55 1H21a2 2 0 110 4h-.09a1.7 1.7 0 00-1.55 1z"/></svg>
+  </button>
+</div>
+
+<!-- ---------- Day details sheet ---------- -->
+<div class="overlay" id="daySheetOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <h3 id="dsTitleHead">تفاصيل اليوم</h3>
+      <button class="sheet-close" id="closeDaySheet" aria-label="إغلاق">✕</button>
+    </div>
+    <div id="daySheetBody"><!-- populated by JS --></div>
+  </div>
+</div>
+
+<!-- ---------- Record payment sheet ---------- -->
+<div class="overlay" id="recordPaymentOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <h3>تسجيل دفعة</h3>
+      <button class="sheet-close" id="closeRecordPayment" aria-label="إغلاق">✕</button>
+    </div>
+
+    <div class="remaining-box">
+      <div class="r-label">المبلغ المتبقي</div>
+      <div class="r-value" id="remainingAmount">0 اوقية</div>
+    </div>
+
+    <form id="recordPaymentForm">
+      <div class="field">
+        <label>المبلغ المدفوع الآن (اوقية)</label>
+        <input type="number" id="paymentInput" placeholder="0" min="1" required>
+        <button type="button" class="btn-pay-full" id="payFullBtn">تسديد كامل المبلغ المتبقي</button>
+      </div>
+      <div class="field">
+        <label>تاريخ الدفعة</label>
+        <input type="date" id="paymentDateInput">
+      </div>
+      <div class="field">
+        <label>طريقة الدفع</label>
+        <select id="paymentMethodInput">
+          <option value="نقدا">نقدا</option>
+          <option value="Bankily">Bankily</option>
+          <option value="Masrvi">Masrvi</option>
+          <option value="Sedad">Sedad</option>
+          <option value="أخرى">أخرى</option>
+        </select>
+      </div>
+
+      <div class="sheet-actions">
+        <button type="button" class="btn-secondary" id="cancelRecordPayment">إلغاء</button>
+        <button type="submit" class="btn-primary">تأكيد الدفعة</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ---------- Add booking sheet ---------- -->
+<div class="overlay" id="addBookingOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <h3>حجز جديد</h3>
+      <button class="sheet-close" id="closeAddBooking" aria-label="إغلاق">✕</button>
+    </div>
+    <form id="addBookingForm">
+      <div class="field">
+        <label>اسم الزبون</label>
+        <input type="text" id="fClient" placeholder="مثال: خديجة و يوسف" required>
+      </div>
+      <div class="field">
+        <label>رقم الهاتف</label>
+        <input type="tel" id="fPhone" placeholder="06 XX XX XX XX" required>
+      </div>
+      <div class="field">
+        <label>تاريخ المناسبة</label>
+        <input type="date" id="fDate" required>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>المبلغ الإجمالي (اوقية)</label>
+          <input type="number" id="fTotal" placeholder="0" min="0" required>
+        </div>
+        <div class="field">
+          <label>المبلغ المدفوع الآن (اوقية)</label>
+          <input type="number" id="fPaid" placeholder="0" min="0" value="0">
+        </div>
+      </div>
+      <div class="field">
+        <label>طريقة الدفع</label>
+        <select id="fPaymentMethod">
+          <option value="نقدا">نقدا</option>
+          <option value="Bankily">Bankily</option>
+          <option value="Masrvi">Masrvi</option>
+          <option value="Sedad">Sedad</option>
+          <option value="أخرى">أخرى</option>
+        </select>
+      </div>
+      <div class="sheet-actions">
+        <button type="button" class="btn-secondary" id="cancelAddBooking">إلغاء</button>
+        <button type="submit" class="btn-primary">حفظ الحجز</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ---------- Edit booking sheet ---------- -->
+<div class="overlay" id="editBookingOverlay">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <h3>تعديل التفاصيل</h3>
+      <button class="sheet-close" id="closeEditBooking" aria-label="إغلاق">✕</button>
+    </div>
+    <form id="editBookingForm">
+      <div class="field">
+        <label>اسم الزبون</label>
+        <input type="text" id="eClient" required>
+      </div>
+      <div class="field">
+        <label>رقم الهاتف</label>
+        <input type="tel" id="ePhone" required>
+      </div>
+      <div class="field">
+        <label>المبلغ الإجمالي (اوقية)</label>
+        <input type="number" id="eTotal" min="0" required>
+      </div>
+      <div class="sheet-actions">
+        <button type="button" class="btn-secondary" id="cancelEditBooking">إلغاء</button>
+        <button type="submit" class="btn-primary">حفظ التعديلات</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ---------- Monthly export (guard schedule) ---------- -->
+<div class="print-overlay" id="monthlyExportOverlay">
+  <div class="print-topbar">
+    <button id="closeMonthlyExport" aria-label="إغلاق">✕</button>
+    <button class="print-btn" id="printMonthlyExport">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+      طباعة / حفظ PDF
+    </button>
+  </div>
+  <div class="doc">
+    <div class="doc-header">
+      <div class="brand">
+        <div class="mark">ق</div>
+        <div>
+          <h1 id="monthlyDocHallName">قاعتي</h1>
+          <div class="sub">لتنظيم الأفراح والمناسبات</div>
+        </div>
+      </div>
+      <div class="meta">0522 12 34 56<br>الدار البيضاء</div>
+    </div>
+    <div class="doc-title">
+      <h2 id="monthlyDocTitle">جدول المناسبات — أغسطس 2026</h2>
+      <p>للمشاركة مع حارس القاعة</p>
+    </div>
+    <table>
+      <thead><tr><th>التاريخ</th><th>الزبون</th><th>الهاتف</th><th>الحالة</th></tr></thead>
+      <tbody id="monthlyDocBody"></tbody>
+    </table>
+    <div class="doc-footer">
+      <span id="monthlyDocDate">تم الإصدار بتاريخ —</span>
+      <span>قاعتي</span>
+    </div>
+  </div>
+</div>
+
+<!-- ---------- Daily export (client slip) ---------- -->
+<div class="print-overlay" id="dailyExportOverlay">
+  <div class="print-topbar">
+    <button id="closeDailyExport" aria-label="إغلاق">✕</button>
+    <button class="print-btn" id="printDailyExport">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+      طباعة / حفظ PDF
+    </button>
+  </div>
+  <div class="doc">
+    <div class="doc-header">
+      <div class="brand">
+        <div class="mark">ق</div>
+        <div>
+          <h1 id="dailyDocHallName">قاعتي</h1>
+          <div class="sub">لتنظيم الأفراح والمناسبات</div>
+        </div>
+      </div>
+      <div class="meta">0522 12 34 56<br>الدار البيضاء</div>
+    </div>
+    <div class="slip" id="dailySlipBody"><!-- populated by JS --></div>
+  </div>
+</div>
+
+<!-- ---------- Payment receipt ---------- -->
+<div class="print-overlay" id="receiptOverlay">
+  <div class="print-topbar">
+    <button id="closeReceipt" aria-label="إغلاق">✕</button>
+    <button class="print-btn" id="printReceipt">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+      طباعة / حفظ PDF
+    </button>
+  </div>
+  <div class="doc">
+    <div class="doc-header">
+      <div class="brand">
+        <div class="mark">ق</div>
+        <div>
+          <h1 id="receiptDocHallName">قاعتي</h1>
+          <div class="sub">لتنظيم الأفراح والمناسبات</div>
+        </div>
+      </div>
+      <div class="meta">0522 12 34 56<br>الدار البيضاء</div>
+    </div>
+    <div class="doc-title">
+      <h2>إيصال دفع</h2>
+      <p id="receiptDate">—</p>
+    </div>
+    <div id="receiptBody"><!-- populated by JS --></div>
+  </div>
+</div>
+
+<script>
+  /* ---------- Shared contact number (set by the admin panel) ---------- */
+  // Reads the same localStorage key the admin panel writes to — works when
+  // both files are hosted on the same domain. Once Firebase is connected,
+  // this becomes a shared "settings/contact" document instead, like StadBook.
+  const sharedWhatsapp = localStorage.getItem('stadbook_hall_contact_whatsapp') || '+222 XX XX XX XX';
+  document.getElementById('pendingWhatsapp').textContent = sharedWhatsapp;
+  document.getElementById('forgotWhatsapp').textContent = sharedWhatsapp;
+  document.getElementById('loginGuideWhatsapp').textContent = sharedWhatsapp;
+
+  /* ---------- Login screen translations (AR/FR/EN), matching StadBook's login ---------- */
+  const LOGIN_T = {
+    ar: {
+      brand:'قاعتي', tagline:'منصة لتسيير قاعات الأفراح والمناسبات',
+      guideStep1:'١. أنشئ/ي حسابك', guideStep2:'٢. تواصل/ي معنا عبر واتساب', guideStep3:'٣. فعّل/ي حسابك وابدأ/ي الحجز!',
+      contactLabel:'📞 تحتاج/ين إلى الوصول؟ تواصل/ي معنا!',
+      tabLogin:'تسجيل الدخول', tabSignup:'حساب جديد',
+      fieldPhone:'رقم الهاتف', fieldPassword:'كلمة المرور', fieldHallName:'اسم القاعة',
+      fieldEmail:'البريد الإلكتروني', fieldPasswordConfirm:'تأكيد كلمة المرور',
+      btnLogin:'تسجيل الدخول', btnSignup:'إنشاء الحساب', forgotLink:'نسيت كلمة المرور؟',
+      pendingTitle:'الحساب في انتظار التفعيل',
+      pendingDesc:'تم إنشاء حسابك. سيتم تفعيله خلال 24 ساعة بعد تأكيد الدفع.',
+      pendingContact:'تواصل معنا عبر واتساب لتفعيل اشتراكك',
+      backToLogin:'→ العودة لتسجيل الدخول',
+      forgotHeading:'نسيت كلمة المرور؟',
+      forgotDesc:'تواصل معنا على واتساب وسنقوم بإعادة تعيين كلمة مرورك.',
+      backToLoginArrow:'→ رجوع لتسجيل الدخول',
+    },
+    fr: {
+      brand:'Qaaty', tagline:'Plateforme de gestion de salles de fête',
+      guideStep1:'1. Créez votre compte', guideStep2:'2. Contactez-nous sur WhatsApp', guideStep3:'3. Activez et commencez à réserver !',
+      contactLabel:"📞 Besoin d'accès ? Contactez-nous !",
+      tabLogin:'Connexion', tabSignup:'Créer un compte',
+      fieldPhone:'Numéro de téléphone', fieldPassword:'Mot de passe', fieldHallName:'Nom de la salle',
+      fieldEmail:'Email', fieldPasswordConfirm:'Confirmer le mot de passe',
+      btnLogin:'Se connecter', btnSignup:'Créer le compte', forgotLink:'Mot de passe oublié ?',
+      pendingTitle:"Compte en attente d'activation",
+      pendingDesc:'Votre compte a été créé. Il sera activé sous 24h après confirmation du paiement.',
+      pendingContact:'Contactez-nous sur WhatsApp pour activer votre abonnement',
+      backToLogin:'→ Retour à la connexion',
+      forgotHeading:'Mot de passe oublié ?',
+      forgotDesc:'Contactez-nous sur WhatsApp et nous réinitialiserons votre mot de passe.',
+      backToLoginArrow:'→ Retour à la connexion',
+    },
+    en: {
+      brand:'Qaaty', tagline:'A platform for managing wedding halls',
+      guideStep1:'1. Create your account', guideStep2:'2. Contact us on WhatsApp', guideStep3:'3. Get activated & start booking!',
+      contactLabel:'📞 Need access? Contact us!',
+      tabLogin:'Sign In', tabSignup:'Sign Up',
+      fieldPhone:'Phone number', fieldPassword:'Password', fieldHallName:'Hall name',
+      fieldEmail:'Email', fieldPasswordConfirm:'Confirm password',
+      btnLogin:'Sign In', btnSignup:'Create Account', forgotLink:'Forgot password?',
+      pendingTitle:'Account Pending Activation',
+      pendingDesc:'Your account was created. It will be activated within 24h after payment confirmation.',
+      pendingContact:'Contact us on WhatsApp to activate your subscription',
+      backToLogin:'→ Back to login',
+      forgotHeading:'Forgot password?',
+      forgotDesc:'Contact us on WhatsApp and we will reset your password for you.',
+      backToLoginArrow:'→ Back to login',
+    },
+  };
+
+  function applyLoginLang(lang){
+    const dict = LOGIN_T[lang];
+    document.querySelectorAll('[data-login-i18n]').forEach(el => {
+      const key = el.dataset.loginI18n;
+      if(dict[key] !== undefined) el.textContent = dict[key];
+    });
+    document.querySelectorAll('#loginLangSwitch button').forEach(b => b.classList.toggle('active', b.dataset.loginlang === lang));
+  }
+  document.querySelectorAll('#loginLangSwitch button').forEach(btn => {
+    btn.addEventListener('click', () => applyLoginLang(btn.dataset.loginlang));
+  });
+
+  /* ---------- Login (demo — no real auth/SMS backend yet) ---------- */
+  const loginScreen = document.getElementById('loginScreen');
+
+  function enterApp(){ loginScreen.style.display = 'none'; }
+  function showLoginScreen(){
+    loginScreen.style.display = 'flex';
+    showPanel('panelAuth');
+  }
+
+  function showPanel(id){
+    document.querySelectorAll('.login-panel').forEach(p => p.classList.toggle('active', p.id === id));
+  }
+  document.querySelectorAll('[data-back]').forEach(btn => {
+    btn.addEventListener('click', () => showPanel(btn.dataset.back));
+  });
+
+  // login / signup tab toggle
+  document.querySelectorAll('.login-tabs button').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.login-tabs button').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      const isSignup = tab.dataset.tab === 'signup';
+      document.getElementById('loginForm').style.display = isSignup ? 'none' : 'block';
+      document.getElementById('forgotLink').style.display = isSignup ? 'none' : 'block';
+      document.getElementById('signupForm').style.display = isSignup ? 'block' : 'none';
+    });
+  });
+
+  document.getElementById('loginForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    enterApp();
+  });
+
+  // The tenant's own hall name — shown on the dashboard and on every PDF/receipt
+  // (since those are issued by the hall itself, not by the قاعتي app).
+  // Defaults to sample data until a real signup sets it for real.
+  let currentHallName = 'قاعتي';
+  function applyHallName(name){
+    currentHallName = name;
+    document.getElementById('dashboardHallName').textContent = name;
+    document.getElementById('avatarRingLetter').textContent = name.trim().charAt(0);
+    document.getElementById('monthlyDocHallName').textContent = name;
+    document.getElementById('dailyDocHallName').textContent = name;
+    document.getElementById('receiptDocHallName').textContent = name;
+    document.getElementById('settingsHallName').value = name;
+  }
+  applyHallName('قاعة الزهراء'); // demo default — replace with the real signup value below
+
+  document.getElementById('signupForm').addEventListener('submit', (e) => {
+    e.preventDefault();
+    const hallName = document.getElementById('signupHallName').value.trim();
+    if(hallName){
+      // this updates the dashboard AND every PDF/receipt with the tenant's real hall name —
+      // the login screen itself always shows the app's own "قاعتي" branding, never a hall name
+      applyHallName(hallName);
+    }
+    // account stays fully blocked until manually activated within 24h — same flow as StadBook
+    showPanel('panelPending');
+  });
+
+  // forgot password — WhatsApp contact only, no self-service (matches StadBook)
+  document.getElementById('forgotLink').addEventListener('click', (e) => {
+    e.preventDefault();
+    showPanel('panelForgotEmail');
+  });
+
+  ['logoutLink1', 'logoutLink2'].forEach(id => {
+    document.getElementById(id).addEventListener('click', (e) => {
+      e.preventDefault();
+      showLoginScreen();
+    });
+  });
+
+  const year = 2026;
+  let currentMonth = 7; // 0-indexed — the month currently shown on Home calendar
+  const monthNames = {0:'يناير',1:'فبراير',2:'مارس',3:'أبريل',4:'مايو',5:'يونيو',6:'يوليو',7:'أغسطس',8:'سبتمبر',9:'أكتوبر',10:'نوفمبر',11:'ديسمبر'};
+  const today = 4; // demo "today" marker, only meaningful while viewing August
+
+  const bookingsByMonth = {
+    6: {
+      5:  { status:'booked', client:'ريم و عبد الله', type:'حفل زفاف', phone:'0623456789', total:10000, paid:10000,
+            payments:[{date:'2026-06-01', amount:5000, method:'نقدا'},{date:'2026-06-05', amount:5000, method:'Bankily'}] },
+      12: { status:'booked', client:'مريم بلحسن', type:'خطوبة', phone:'0666112233', total:5000, paid:5000,
+            payments:[{date:'2026-06-12', amount:5000, method:'Masrvi'}] },
+      20: { status:'booked', client:'يوسف و هدى', type:'حفل زفاف', phone:'0677554433', total:14000, paid:14000,
+            payments:[{date:'2026-06-10', amount:7000, method:'Sedad'},{date:'2026-06-20', amount:7000, method:'نقدا'}] },
+    },
+    7: {
+      3:  { status:'booked',  client:'خديجة و يوسف', type:'حفل زفاف', phone:'0661234567', total:12000, paid:12000,
+            payments:[{date:'2026-07-10', amount:6000, method:'نقدا'},{date:'2026-08-01', amount:6000, method:'Bankily'}] },
+      8:  { status:'pending', client:'أسماء بنعلي',  type:'خطوبة',    phone:'0677881230', total:6000,  paid:2000,
+            payments:[{date:'2026-07-25', amount:2000, method:'Masrvi'}] },
+      14: { status:'booked',  client:'سلمى و عادل',  type:'حفل زفاف', phone:'0612345678', total:15000, paid:15000,
+            payments:[{date:'2026-06-15', amount:7500, method:'نقدا'},{date:'2026-08-02', amount:7500, method:'نقدا'}] },
+      19: { status:'pending', client:'فاطمة الزهراء', type:'عيد ميلاد', phone:'0699456712', total:3500, paid:1000,
+            payments:[{date:'2026-08-01', amount:1000, method:'Sedad'}] },
+      22: { status:'booked',  client:'نادية و كريم', type:'حفل زفاف', phone:'0644901123', total:13500, paid:13500,
+            payments:[{date:'2026-07-05', amount:6750, method:'Bankily'},{date:'2026-08-03', amount:6750, method:'نقدا'}] },
+      27: { status:'pending', client:'ليلى بوزيد',   type:'حناء',      phone:'0655223344', total:4000, paid:1500,
+            payments:[{date:'2026-08-04', amount:1500, method:'نقدا'}] },
+    },
+    8: {
+      2:  { status:'pending', client:'زينب و محمد', type:'حفل زفاف', phone:'0688776655', total:16000, paid:5000,
+            payments:[{date:'2026-08-20', amount:5000, method:'Bankily'}] },
+      9:  { status:'booked', client:'سارة أحمد', type:'عيد ميلاد', phone:'0644223311', total:2500, paid:2500,
+            payments:[{date:'2026-09-01', amount:2500, method:'نقدا'}] },
+      17: { status:'pending', client:'إيمان و طارق', type:'خطوبة', phone:'0699887766', total:7000, paid:3000,
+            payments:[{date:'2026-08-28', amount:3000, method:'Sedad'}] },
+    },
+  };
+
+  const daysEl = document.getElementById('days');
+  const calMonthTitle = document.getElementById('calMonthTitle');
+  let selectedDay = null;
+  let selectedMonthKey = currentMonth;
+
+  function renderCalendar(){
+    const firstDay = new Date(year, currentMonth, 1).getDay();
+    const daysInMonth = new Date(year, currentMonth + 1, 0).getDate();
+    const monthBookings = bookingsByMonth[currentMonth] || {};
+
+    calMonthTitle.textContent = `${monthNames[currentMonth]} ${year}`;
+    daysEl.innerHTML = '';
+
+    for(let i=0;i<firstDay;i++) daysEl.insertAdjacentHTML('beforeend', `<div class="day empty"></div>`);
+    for(let d=1; d<=daysInMonth; d++){
+      const b = monthBookings[d];
+      const classes = ['day'];
+      if(b) classes.push(b.status);
+      if(d === today && currentMonth === 7) classes.push('today');
+      daysEl.insertAdjacentHTML('beforeend', `<div class="${classes.join(' ')}" data-day="${d}">${d}</div>`);
+    }
+
+    updateHomeCards();
+  }
+
+  function updateHomeCards(){
+    const entries = Object.values(bookingsByMonth[currentMonth] || {});
+    const revenue = entries.reduce((sum, b) => sum + b.paid, 0);
+    const notFullyPaid = entries.filter(b => b.status === 'pending').length;
+
+    document.getElementById('homeRevenueValue').textContent = fmtM(revenue) + ' اوقية';
+    document.getElementById('homeRevenueSub').textContent = `من ${entries.length} حجوزات`;
+    document.getElementById('homeBookingsValue').textContent = entries.length;
+    document.getElementById('homeBookingsSub').textContent = `${notFullyPaid} غير مكتملة الدفع`;
+  }
+
+  document.getElementById('prevMonth').addEventListener('click', () => {
+    currentMonth = Math.max(0, currentMonth - 1);
+    renderCalendar();
+  });
+  document.getElementById('nextMonth').addEventListener('click', () => {
+    currentMonth = Math.min(11, currentMonth + 1);
+    renderCalendar();
+  });
+
+  renderCalendar();
+
+  function formatPhone(p){ return p.replace(/(\d{2})(?=\d)/g, '$1 ').trim(); }
+
+  // Compact number formatting for big dashboard totals — floors (never rounds up),
+  // so a figure never looks bigger than it actually is. Same approach as StadBook.
+  // Individual receipts/transactions stay as exact full numbers on purpose.
+  // Compact number formatting — matches StadBook exactly: only kicks in at 1,000,000+.
+  // Anything below shows as a normal full number. Floors (never rounds up), comma as decimal separator.
+  function fmtM(n){
+    if(n < 1000000) return n.toLocaleString('en-US');
+    const m = Math.floor(n / 1000000);
+    const d = Math.floor((n % 1000000) / 100000);
+    return d > 0 ? `${m},${d}M` : `${m}M`;
+  }
+  function formatDate(iso){
+    const d = new Date(iso + 'T00:00:00');
+    return `${d.getDate()} ${monthNames[d.getMonth()] || d.getMonth()+1}`;
+  }
+
+  /* ---------- Day details sheet ---------- */
+  const daySheetOverlay = document.getElementById('daySheetOverlay');
+  const daySheetBody = document.getElementById('daySheetBody');
+  const dsTitleHead = document.getElementById('dsTitleHead');
+  const closeDaySheet = document.getElementById('closeDaySheet');
+
+  function openDaySheet(day, monthKey = currentMonth){
+    selectedDay = day;
+    selectedMonthKey = monthKey;
+    const b = bookingsByMonth[monthKey][day];
+    const dateLabel = `${day} ${monthNames[monthKey]} ${year}`;
+
+    if(!b){
+      dsTitleHead.textContent = dateLabel;
+      daySheetBody.innerHTML = `
+        <span class="badge free">متاح</span>
+        <p style="font-size:.85rem; color:var(--ink-muted); line-height:1.8; margin-bottom:18px;">
+          لا يوجد حجز في هذا التاريخ حاليًا.
+        </p>
+        <button class="btn-primary" id="dsAddBookingBtn" style="width:100%;">+ إضافة حجز لهذا التاريخ</button>
+      `;
+      daySheetOverlay.classList.add('open');
+      return;
+    }
+
+    const pct = Math.round((b.paid / b.total) * 100);
+    const statusLabel = 'محجوز';
+    const remaining = b.total - b.paid;
+    const sortedPayments = [...b.payments].sort((a,c) => a.date.localeCompare(c.date));
+
+    dsTitleHead.textContent = b.client;
+    daySheetBody.innerHTML = `
+      <div class="ds-date">${dateLabel}</div>
+      <span class="badge ${b.status}">${statusLabel}</span>
+      <div class="info-row"><span>الهاتف</span><span>${formatPhone(b.phone)}</span></div>
+      <div class="info-row"><span>المبلغ الإجمالي</span><span>${b.total.toLocaleString('en-US')} اوقية</span></div>
+      <div class="info-row"><span>المدفوع</span><span>${b.paid.toLocaleString('en-US')} اوقية</span></div>
+      <div class="deposit-bar"><div class="deposit-fill" style="width:${pct}%"></div></div>
+      <div class="deposit-caption"><span>${pct}% مدفوع</span><span>${remaining.toLocaleString('en-US')} اوقية متبقي</span></div>
+
+      <div class="ds-section-title">سجل الدفعات</div>
+      <div class="payment-history">
+        ${sortedPayments.map(p => `
+          <div class="payment-row">
+            <span class="p-date">${formatDate(p.date)} · ${p.method || 'نقدا'}</span>
+            <span style="display:flex; align-items:center; gap:10px;">
+              <span class="p-amount">${p.amount.toLocaleString('en-US')} اوقية</span>
+              <button class="receipt-icon-btn" data-payment-index="${b.payments.indexOf(p)}" aria-label="طباعة الإيصال">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+              </button>
+            </span>
+          </div>
+        `).join('')}
+      </div>
+
+      ${remaining > 0 ? `<button class="btn-primary" id="dsRecordPaymentBtn" style="width:100%; margin-top:16px;">+ تسجيل دفعة</button>` : ''}
+      <button class="btn-secondary" id="dsShareClientBtn" style="width:100%; margin-top:10px;">مشاركة مع الزبون</button>
+      <div style="display:flex; gap:10px; margin-top:10px;">
+        <button class="btn-secondary" id="dsEditBtn" style="flex:1;">تعديل التفاصيل</button>
+        <button class="btn-secondary" id="dsCancelBtn" style="flex:1; background:rgba(232,89,143,0.18); color:#FBD9E6;">إلغاء الحجز</button>
+      </div>
+      <div id="dsCancelConfirm" style="display:none; margin-top:10px; background:rgba(232,89,143,0.14); border-radius:14px; padding:14px; text-align:center;">
+        <div style="font-size:.82rem; color:#FBD9E6; margin-bottom:10px;">هل تريد إلغاء هذا الحجز نهائيًا؟</div>
+        <div style="display:flex; gap:10px;">
+          <button id="dsCancelConfirmYes" style="flex:1; background:var(--coral); color:#fff; border:none; border-radius:12px; padding:10px; font-family:'Tajawal',sans-serif; font-weight:800; font-size:.84rem; cursor:pointer;">نعم، ألغِ الحجز</button>
+          <button id="dsCancelConfirmNo" style="flex:1; background:rgba(255,255,255,0.14); color:#F1EEFB; border:none; border-radius:12px; padding:10px; font-family:'Tajawal',sans-serif; font-weight:700; font-size:.84rem; cursor:pointer;">تراجع</button>
+        </div>
+      </div>
+    `;
+    daySheetOverlay.classList.add('open');
+  }
+
+  function closeDaySheetFn(){ daySheetOverlay.classList.remove('open'); }
+  closeDaySheet.addEventListener('click', closeDaySheetFn);
+  daySheetOverlay.addEventListener('click', (e) => { if(e.target === daySheetOverlay) closeDaySheetFn(); });
+
+  daysEl.addEventListener('click', (e) => {
+    const cell = e.target.closest('.day:not(.empty)');
+    if(!cell) return;
+    document.querySelectorAll('.day.selected').forEach(el => el.classList.remove('selected'));
+    cell.classList.add('selected');
+    openDaySheet(parseInt(cell.dataset.day, 10));
+  });
+
+  // delegated clicks inside the day sheet body (add booking / open payment sheet)
+  daySheetBody.addEventListener('click', (e) => {
+    if(e.target.id === 'dsAddBookingBtn'){
+      closeDaySheetFn();
+      openAddBookingSheet(selectedDay);
+    }
+    if(e.target.id === 'dsRecordPaymentBtn'){
+      openRecordPaymentSheet();
+    }
+    if(e.target.id === 'dsShareClientBtn'){
+      openDailyExport(selectedDay, selectedMonthKey);
+    }
+    const receiptBtn = e.target.closest('.receipt-icon-btn');
+    if(receiptBtn){
+      openReceipt(selectedMonthKey, selectedDay, parseInt(receiptBtn.dataset.paymentIndex, 10));
+    }
+    if(e.target.id === 'dsEditBtn'){
+      openEditBookingSheet(selectedDay, selectedMonthKey);
+    }
+    if(e.target.id === 'dsCancelBtn'){
+      document.getElementById('dsCancelConfirm').style.display = 'block';
+      e.target.closest('div').style.display = 'none';
+    }
+    if(e.target.id === 'dsCancelConfirmNo'){
+      document.getElementById('dsCancelConfirm').style.display = 'none';
+      openDaySheet(selectedDay, selectedMonthKey); // re-render to restore buttons
+    }
+    if(e.target.id === 'dsCancelConfirmYes'){
+      delete bookingsByMonth[selectedMonthKey][selectedDay];
+      if(selectedMonthKey === currentMonth){
+        const cell = document.querySelector(`.day[data-day="${selectedDay}"]`);
+        if(cell){ cell.classList.remove('booked','pending'); }
+        renderAgenda();
+        updateHomeCards();
+      }
+      renderMonthCards();
+      if(currentEarningsMonthKey === selectedMonthKey && monthDetailView.style.display !== 'none'){
+        renderMonthBookings(selectedMonthKey);
+        updateEarningsCards(statsForMonth(selectedMonthKey), 'مداخيل الشهر');
+      }
+      closeDaySheetFn();
+    }
+  });
+
+  /* ---------- Monthly export (guard schedule) ---------- */
+  const monthlyExportOverlay = document.getElementById('monthlyExportOverlay');
+  const monthlyDocBody = document.getElementById('monthlyDocBody');
+
+  function renderMonthlyDoc(){
+    // scope follows whatever month is selected in the Agenda filter above
+    const scope = monthSelect.value; // 'all' or a specific month key
+    const monthKeys = scope === 'all' ? Object.keys(bookingsByMonth) : [scope];
+
+    let entries = [];
+    monthKeys.forEach(key => {
+      Object.entries(bookingsByMonth[key]).forEach(([day, b]) => {
+        entries.push({ day: parseInt(day, 10), monthKey: key, ...b });
+      });
+    });
+    entries.sort((a, b) => (a.monthKey - b.monthKey) || (a.day - b.day));
+
+    monthlyDocBody.innerHTML = entries.map(b => `
+      <tr>
+        <td>${b.day} ${monthNames[b.monthKey]}</td>
+        <td>${b.client}</td>
+        <td>${formatPhone(b.phone)}</td>
+        <td><span class="status-pill ${b.status}">محجوز</span></td>
+      </tr>
+    `).join('');
+
+    document.getElementById('monthlyDocTitle').textContent =
+      scope === 'all' ? 'جدول المناسبات — كل الأشهر' : `جدول المناسبات — ${monthNames[scope]} ${year}`;
+
+    document.getElementById('monthlyDocDate').textContent =
+      'تم الإصدار بتاريخ ' + new Date().toLocaleDateString('en-GB');
+  }
+
+  function openMonthlyExport(){
+    renderMonthlyDoc();
+    monthlyExportOverlay.classList.add('open');
+  }
+  document.getElementById('openMonthlyExport').addEventListener('click', openMonthlyExport);
+  document.getElementById('closeMonthlyExport').addEventListener('click', () => monthlyExportOverlay.classList.remove('open'));
+  document.getElementById('printMonthlyExport').addEventListener('click', () => window.print());
+
+  /* ---------- Daily export (client slip) ---------- */
+  const dailyExportOverlay = document.getElementById('dailyExportOverlay');
+  const dailySlipBody = document.getElementById('dailySlipBody');
+  const weekdayNames = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+
+  function openDailyExport(day, monthKey = currentMonth){
+    const b = bookingsByMonth[monthKey][day];
+    if(!b) return;
+    const dateObj = new Date(year, monthKey, day);
+    const statusLabel = 'محجوز';
+
+    dailySlipBody.innerHTML = `
+      <div class="authorize">تصريح دخول لليوم</div>
+      <div class="date-big">${day} ${monthNames[monthKey]} ${year}</div>
+      <div class="weekday">${weekdayNames[dateObj.getDay()]}</div>
+      <div class="slip-row"><span>الزبون</span><span>${b.client}</span></div>
+      <div class="slip-row"><span>الهاتف</span><span>${formatPhone(b.phone)}</span></div>
+      <div class="slip-row"><span>المبلغ الإجمالي</span><span>${b.total.toLocaleString('en-US')} اوقية</span></div>
+      <div class="badge-big ${b.status}">${statusLabel}</div>
+      <div class="note">يرجى إبراز هذا التصريح لحارس القاعة عند الوصول يوم المناسبة.</div>
+    `;
+    dailyExportOverlay.classList.add('open');
+  }
+  document.getElementById('closeDailyExport').addEventListener('click', () => dailyExportOverlay.classList.remove('open'));
+  document.getElementById('printDailyExport').addEventListener('click', () => window.print());
+
+  /* ---------- Payment receipt ---------- */
+  const receiptOverlay = document.getElementById('receiptOverlay');
+  const receiptBody = document.getElementById('receiptBody');
+
+  function openReceipt(monthKey, day, paymentIndex){
+    const b = bookingsByMonth[monthKey][day];
+    if(!b) return;
+    const p = b.payments[paymentIndex];
+    if(!p) return;
+
+    const remaining = b.total - b.paid;
+    const isFull = remaining <= 0;
+
+    document.getElementById('receiptDate').textContent = `${formatDate(p.date)} ${year}`;
+
+    receiptBody.innerHTML = `
+      <div class="slip-row"><span>الزبون</span><span>${b.client}</span></div>
+      <div class="slip-row"><span>الهاتف</span><span>${formatPhone(b.phone)}</span></div>
+      <div class="slip-row"><span>تاريخ المناسبة</span><span>${day} ${monthNames[monthKey]} ${year}</span></div>
+      <div class="slip-row"><span>طريقة الدفع</span><span>${p.method || 'نقدا'}</span></div>
+      <div class="slip-row"><span>المبلغ المدفوع (هذه الدفعة)</span><span>${p.amount.toLocaleString('en-US')} اوقية</span></div>
+      <div class="slip-row"><span>المبلغ الإجمالي للحجز</span><span>${b.total.toLocaleString('en-US')} اوقية</span></div>
+      <div class="slip-row"><span>مجموع المدفوع لحد الآن</span><span>${b.paid.toLocaleString('en-US')} اوقية</span></div>
+      <div class="receipt-highlight ${isFull ? 'paid-full' : 'paid-partial'}">
+        <div class="rh-label">${isFull ? 'تم سداد المبلغ بالكامل' : 'المبلغ المتبقي'}</div>
+        ${isFull ? '' : `<div class="rh-value">${remaining.toLocaleString('en-US')} اوقية</div>`}
+      </div>
+    `;
+    receiptOverlay.classList.add('open');
+  }
+
+  document.getElementById('closeReceipt').addEventListener('click', () => receiptOverlay.classList.remove('open'));
+  document.getElementById('printReceipt').addEventListener('click', () => window.print());
+
+  /* ---------- Record payment sheet ---------- */
+  const paymentOverlay = document.getElementById('recordPaymentOverlay');
+  const closeRecordPayment = document.getElementById('closeRecordPayment');
+  const cancelRecordPayment = document.getElementById('cancelRecordPayment');
+  const recordPaymentForm = document.getElementById('recordPaymentForm');
+  const paymentInput = document.getElementById('paymentInput');
+  const paymentDateInput = document.getElementById('paymentDateInput');
+  const remainingAmountEl = document.getElementById('remainingAmount');
+  const payFullBtn = document.getElementById('payFullBtn');
+
+  function openRecordPaymentSheet(){
+    const b = bookingsByMonth[selectedMonthKey][selectedDay];
+    if(!b) return;
+    const remaining = b.total - b.paid;
+    remainingAmountEl.textContent = remaining.toLocaleString('en-US') + ' اوقية';
+    paymentInput.value = '';
+    paymentInput.max = remaining;
+    paymentDateInput.value = new Date().toISOString().slice(0,10);
+    paymentOverlay.classList.add('open');
+  }
+  function closeRecordPaymentSheet(){ paymentOverlay.classList.remove('open'); }
+
+  closeRecordPayment.addEventListener('click', closeRecordPaymentSheet);
+  cancelRecordPayment.addEventListener('click', closeRecordPaymentSheet);
+  paymentOverlay.addEventListener('click', (e) => { if(e.target === paymentOverlay) closeRecordPaymentSheet(); });
+
+  payFullBtn.addEventListener('click', () => {
+    const b = bookingsByMonth[selectedMonthKey][selectedDay];
+    paymentInput.value = b.total - b.paid;
+  });
+
+  recordPaymentForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const b = bookingsByMonth[selectedMonthKey][selectedDay];
+    const remaining = b.total - b.paid;
+    const amount = Math.min(parseInt(paymentInput.value, 10) || 0, remaining);
+    if(amount <= 0) return;
+
+    b.payments.push({ date: paymentDateInput.value || new Date().toISOString().slice(0,10), amount, method: document.getElementById('paymentMethodInput').value });
+    b.paid += amount;
+    if(b.paid >= b.total) b.status = 'booked';
+
+    if(selectedMonthKey === currentMonth){
+      const cell = document.querySelector(`.day[data-day="${selectedDay}"]`);
+      if(cell){ cell.classList.remove('booked','pending'); cell.classList.add(b.status); }
+      renderAgenda();
+      updateHomeCards();
+    }
+
+    closeRecordPaymentSheet();
+    openDaySheet(selectedDay, selectedMonthKey); // re-render day sheet with updated history
+    renderMonthCards();
+    if(currentEarningsMonthKey === selectedMonthKey && monthDetailView.style.display !== 'none'){
+      openMonthDetail(selectedMonthKey);
+    }
+    openReceipt(selectedMonthKey, selectedDay, b.payments.length - 1);
+  });
+
+  /* ---------- Add booking sheet ---------- */
+  const addBookingOverlay = document.getElementById('addBookingOverlay');
+  const closeAddBooking = document.getElementById('closeAddBooking');
+  const cancelAddBooking = document.getElementById('cancelAddBooking');
+  const addBookingForm = document.getElementById('addBookingForm');
+
+  function openAddBookingSheet(day){
+    addBookingForm.reset();
+    if(day){
+      const iso = `${year}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+      document.getElementById('fDate').value = iso;
+    }
+    addBookingOverlay.classList.add('open');
+  }
+  function closeAddBookingSheet(){ addBookingOverlay.classList.remove('open'); }
+  closeAddBooking.addEventListener('click', closeAddBookingSheet);
+  cancelAddBooking.addEventListener('click', closeAddBookingSheet);
+  addBookingOverlay.addEventListener('click', (e) => { if(e.target === addBookingOverlay) closeAddBookingSheet(); });
+
+  addBookingForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const dateVal = document.getElementById('fDate').value;
+    const day = parseInt(dateVal.split('-')[2], 10);
+    const total = parseInt(document.getElementById('fTotal').value, 10) || 0;
+    const paid = Math.min(parseInt(document.getElementById('fPaid').value, 10) || 0, total);
+
+    if(!bookingsByMonth[currentMonth]) bookingsByMonth[currentMonth] = {};
+    bookingsByMonth[currentMonth][day] = {
+      status: paid >= total && total > 0 ? 'booked' : 'pending',
+      client: document.getElementById('fClient').value,
+      phone: document.getElementById('fPhone').value.replace(/\s/g, ''),
+      total, paid,
+      payments: paid > 0 ? [{ date: new Date().toISOString().slice(0,10), amount: paid, method: document.getElementById('fPaymentMethod').value }] : []
+    };
+
+    const cell = document.querySelector(`.day[data-day="${day}"]`);
+    if(cell){ cell.classList.remove('booked','pending'); cell.classList.add(bookingsByMonth[currentMonth][day].status); }
+
+    closeAddBookingSheet();
+    renderAgenda();
+    renderMonthCards();
+    updateHomeCards();
+    if(paid > 0){
+      openReceipt(currentMonth, day, 0);
+    }
+  });
+
+  /* ---------- Edit booking sheet ---------- */
+  const editBookingOverlay = document.getElementById('editBookingOverlay');
+  const closeEditBooking = document.getElementById('closeEditBooking');
+  const cancelEditBooking = document.getElementById('cancelEditBooking');
+  const editBookingForm = document.getElementById('editBookingForm');
+  let editingDay = null, editingMonthKey = null;
+
+  function openEditBookingSheet(day, monthKey){
+    const b = bookingsByMonth[monthKey][day];
+    if(!b) return;
+    editingDay = day;
+    editingMonthKey = monthKey;
+    document.getElementById('eClient').value = b.client;
+    document.getElementById('ePhone').value = formatPhone(b.phone);
+    document.getElementById('eTotal').value = b.total;
+    closeDaySheetFn();
+    editBookingOverlay.classList.add('open');
+  }
+  function closeEditBookingSheet(){
+    editBookingOverlay.classList.remove('open');
+    openDaySheet(editingDay, editingMonthKey);
+  }
+  closeEditBooking.addEventListener('click', closeEditBookingSheet);
+  cancelEditBooking.addEventListener('click', closeEditBookingSheet);
+  editBookingOverlay.addEventListener('click', (e) => { if(e.target === editBookingOverlay) closeEditBookingSheet(); });
+
+  editBookingForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const b = bookingsByMonth[editingMonthKey][editingDay];
+    b.client = document.getElementById('eClient').value;
+    b.phone = document.getElementById('ePhone').value.replace(/\s/g, '');
+    b.total = parseInt(document.getElementById('eTotal').value, 10) || b.total;
+    b.status = b.paid >= b.total && b.total > 0 ? 'booked' : 'pending';
+
+    if(editingMonthKey === currentMonth){
+      const cell = document.querySelector(`.day[data-day="${editingDay}"]`);
+      if(cell){ cell.classList.remove('booked','pending'); cell.classList.add(b.status); }
+      renderAgenda();
+      updateHomeCards();
+    }
+    renderMonthCards();
+    if(currentEarningsMonthKey === editingMonthKey && monthDetailView.style.display !== 'none'){
+      renderMonthBookings(editingMonthKey);
+      updateEarningsCards(statsForMonth(editingMonthKey), 'مداخيل الشهر');
+    }
+
+    closeEditBookingSheet();
+  });
+
+  /* ---------- Page navigation ---------- */
+  const navButtons = document.querySelectorAll('.bottom-nav button');
+  const pages = document.querySelectorAll('.page');
+  navButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      navButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const target = btn.dataset.page;
+      pages.forEach(p => p.classList.toggle('active', p.id === 'page-' + target));
+    });
+  });
+
+  /* ---------- Agenda: search + month + status filters ---------- */
+  const agendaListEl = document.getElementById('agendaList');
+  const agendaCountEl = document.getElementById('agendaCount');
+  const phoneSearch = document.getElementById('phoneSearch');
+  const monthSelect = document.getElementById('monthSelect');
+
+  // populate month dropdown from every month present in the data
+  Object.keys(bookingsByMonth).sort((a, b) => a - b).forEach(key => {
+    const opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = `${monthNames[key]} ${year}`;
+    if(parseInt(key, 10) === currentMonth) opt.selected = true;
+    monthSelect.appendChild(opt);
+  });
+
+  function renderAgenda(){
+    const statusFilter = document.querySelector('#statusChips .chip.active')?.dataset.filter || 'all';
+    const monthFilter = monthSelect.value; // 'all' or a specific month key
+    const phoneQuery = phoneSearch.value.replace(/\s/g, '');
+
+    const monthKeys = monthFilter === 'all' ? Object.keys(bookingsByMonth) : [monthFilter];
+
+    let entries = [];
+    monthKeys.forEach(key => {
+      Object.entries(bookingsByMonth[key]).forEach(([day, b]) => {
+        entries.push({ day: parseInt(day, 10), monthKey: key, ...b });
+      });
+    });
+
+    entries = entries
+      .sort((a, b) => (a.monthKey - b.monthKey) || (a.day - b.day))
+      .filter(b => statusFilter === 'all' || b.status === statusFilter)
+      .filter(b => !phoneQuery || b.phone.includes(phoneQuery));
+
+    agendaCountEl.textContent = `${entries.length} حجوزات`;
+
+    agendaListEl.innerHTML = entries.map(b => `
+      <div class="agenda-item ${b.status}" data-day="${b.day}" data-month="${b.monthKey}">
+        <div class="agenda-date">
+          <div class="num">${b.day}</div>
+          <div class="mon">${monthNames[b.monthKey]}</div>
+        </div>
+        <div class="agenda-info">
+          <div class="name">${b.client}</div>
+          <div class="meta">${formatPhone(b.phone)}</div>
+        </div>
+        <div class="agenda-status">محجوز</div>
+      </div>
+    `).join('') || `<div class="empty-state">لا توجد نتائج مطابقة</div>`;
+  }
+
+  agendaListEl.addEventListener('click', (e) => {
+    const item = e.target.closest('.agenda-item');
+    if(!item) return;
+    openDaySheet(parseInt(item.dataset.day, 10), item.dataset.month);
+  });
+
+  document.querySelectorAll('#statusChips .chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      document.querySelectorAll('#statusChips .chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      renderAgenda();
+    });
+  });
+  phoneSearch.addEventListener('input', renderAgenda);
+  monthSelect.addEventListener('change', renderAgenda);
+
+  renderAgenda();
+
+  /* ---------- Earnings: month cards + drill-down ---------- */
+  const monthCardsList = document.getElementById('monthCardsList');
+  const monthCardsView = document.getElementById('monthCardsView');
+  const monthDetailView = document.getElementById('monthDetailView');
+  const monthBookingsList = document.getElementById('monthBookingsList');
+  const earningsCardLabel = document.getElementById('earningsCardLabel');
+  const earningsTotalEl = document.getElementById('earningsTotal');
+  const earningsCountEl = document.getElementById('earningsCount');
+  const earningsRemainingEl = document.getElementById('earningsRemaining');
+  let currentEarningsMonthKey = null;
+
+  function statsForMonth(monthKey){
+    const entries = Object.values(bookingsByMonth[monthKey] || {});
+    return {
+      total: entries.reduce((sum, b) => sum + b.paid, 0),
+      remaining: entries.filter(b => b.status === 'pending').reduce((sum, b) => sum + (b.total - b.paid), 0),
+      count: entries.length
+    };
+  }
+
+  function statsForAllMonths(){
+    return Object.keys(bookingsByMonth).reduce((acc, key) => {
+      const s = statsForMonth(key);
+      acc.total += s.total; acc.remaining += s.remaining; acc.count += s.count;
+      return acc;
+    }, { total: 0, remaining: 0, count: 0 });
+  }
+
+  function updateEarningsCards(stats, label){
+    earningsCardLabel.textContent = label;
+    earningsTotalEl.textContent = fmtM(stats.total) + ' اوقية';
+    earningsCountEl.textContent = stats.count + ' حجوزات';
+    earningsRemainingEl.textContent = fmtM(stats.remaining) + ' اوقية';
+  }
+
+  function renderMonthCards(){
+    // sorted chronologically across every month present in the data
+    const keys = Object.keys(bookingsByMonth).sort((a, b) => a - b);
+    monthCardsList.innerHTML = keys.map(key => {
+      const s = statsForMonth(key);
+      return `
+        <div class="month-card" data-month-key="${key}">
+          <div>
+            <div class="mc-name">${monthNames[key]} ${year}</div>
+            <div class="mc-sub">${s.count} حجوزات</div>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="mc-total">${fmtM(s.total)} اوقية</div>
+            <span class="mc-arrow">‹</span>
+          </div>
+        </div>
+      `;
+    }).join('') || `<div class="empty-state">لا توجد بيانات بعد</div>`;
+
+    // top cards default to the grand total across all months
+    updateEarningsCards(statsForAllMonths(), 'إجمالي المداخيل');
+  }
+
+  monthCardsList.addEventListener('click', (e) => {
+    const card = e.target.closest('.month-card');
+    if(!card) return;
+    openMonthDetail(card.dataset.monthKey);
+  });
+
+  function openMonthDetail(monthKey){
+    currentEarningsMonthKey = monthKey;
+    document.getElementById('monthDetailTitle').textContent = `${monthNames[monthKey]} ${year}`;
+    monthCardsView.style.display = 'none';
+    monthDetailView.style.display = 'block';
+    updateEarningsCards(statsForMonth(monthKey), 'مداخيل الشهر');
+    renderMonthBookings(monthKey);
+  }
+
+  document.getElementById('backToMonths').addEventListener('click', () => {
+    monthDetailView.style.display = 'none';
+    monthCardsView.style.display = 'block';
+    updateEarningsCards(statsForAllMonths(), 'إجمالي المداخيل');
+  });
+
+  function renderMonthBookings(monthKey){
+    const entries = Object.entries(bookingsByMonth[monthKey])
+      .map(([day, b]) => ({ day: parseInt(day, 10), ...b }))
+      .sort((a, b) => a.day - b.day);
+
+    monthBookingsList.innerHTML = entries.map(b => `
+      <div class="agenda-item ${b.status}" data-day="${b.day}">
+        <div class="agenda-date">
+          <div class="num">${b.day}</div>
+          <div class="mon">${monthNames[monthKey]}</div>
+        </div>
+        <div class="agenda-info">
+          <div class="name">${b.client}</div>
+          <div class="meta">${formatPhone(b.phone)} · ${b.paid.toLocaleString('en-US')} / ${b.total.toLocaleString('en-US')} اوقية</div>
+        </div>
+        <div class="agenda-status">محجوز</div>
+      </div>
+    `).join('') || `<div class="empty-state">لا توجد حجوزات هذا الشهر</div>`;
+  }
+
+  monthBookingsList.addEventListener('click', (e) => {
+    const item = e.target.closest('.agenda-item');
+    if(!item) return;
+    openDaySheet(parseInt(item.dataset.day, 10), currentEarningsMonthKey);
+  });
+
+  renderMonthCards();
+
+  /* ---------- Settings interactions ---------- */
+  document.querySelectorAll('.settings-row .toggle').forEach(t => {
+    t.addEventListener('click', () => t.classList.toggle('on'));
+  });
+  document.querySelectorAll('.lang-pills button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
+
+  document.getElementById('sendResetLinkBtn').addEventListener('click', () => {
+    // in the real app: auth.sendPasswordResetEmail(auth.currentUser.email)
+    alert('تم إرسال بريد إعادة التعيين! تحقق من البريد العشوائي.');
+  });
+</script>
+
+</body>
+</html>
