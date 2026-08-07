@@ -254,6 +254,14 @@
   /* ---------- Day details sheet ---------- */
   .ds-title{ font-size:1.1rem; font-weight:800; color:#F1EEFB; margin-bottom:2px; }
   .ds-date{ font-size:.78rem; color:#D6D1F5; margin-bottom:14px; }
+  .form-error{
+    background:rgba(232,89,143,0.18); color:#FBD9E6; font-size:.78rem; font-weight:700;
+    padding:10px 14px; border-radius:12px; margin-bottom:14px;
+  }
+  .form-success{
+    background:rgba(30,122,99,0.18); color:#B7F0DC; font-size:.78rem; font-weight:700;
+    padding:10px 14px; border-radius:12px; margin-bottom:14px;
+  }
   .badge{ display:inline-block; padding:5px 14px; border-radius:20px; font-size:.72rem; font-weight:700; margin-bottom:16px; }
   .badge.booked{ background:rgba(255,255,255,0.18); color:#DFFAF0; }
   .badge.pending{ background:rgba(255,255,255,0.9); color:var(--coral); }
@@ -1045,7 +1053,10 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
   const [paidNow, setPaidNow] = useState('');
   const [payAmount, setPayAmount] = useState('');
   const [payMethod, setPayMethod] = useState('نقدا');
+  const [payDate, setPayDate] = useState(toKey(new Date()));
+  const [payError, setPayError] = useState('');
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [addError, setAddError] = useState('');
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editTotal, setEditTotal] = useState('');
@@ -1082,15 +1093,16 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
         style={{ transform:`translateY(${dragY}px)`, transition: dragging ? 'none' : 'transform .25s ease' }}
       >
         <div
-          className="sheet-handle"
-          style={{ padding:'10px 0', margin:'-10px 0 10px', cursor:'grab' }}
+          style={{ cursor:'grab' }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
-        ></div>
-        <div className="sheet-head">
-          <h3>{dayData ? dayData.clientName : dateLabel}</h3>
-          <button className="sheet-close" onClick={onClose}>✕</button>
+        >
+          <div className="sheet-handle"></div>
+          <div className="sheet-head">
+            <h3>{dayData ? dayData.clientName : dateLabel}</h3>
+            <button className="sheet-close" onClick={onClose}>✕</button>
+          </div>
         </div>
 
         {screen === 'empty' && !dayData && (
@@ -1104,14 +1116,19 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
         {screen === 'add' && !dayData && (
           <form onSubmit={e=>{
             e.preventDefault();
-            if(!name.trim() || !phone.trim() || !total) return;
-            onAddBooking(dateKey, { clientName:name.trim(), phone:phone.trim(), total:Number(total), paidNow:Number(paidNow)||0, method:payMethod });
+            if(!name.trim() || !phone.trim() || !total){ setAddError('يرجى تعبئة كل الحقول المطلوبة.'); return; }
+            const totalNum = Number(total);
+            const paidNowNum = Number(paidNow)||0;
+            if(paidNowNum > totalNum){ setAddError('المبلغ المدفوع لا يمكن أن يكون أكبر من المبلغ الإجمالي.'); return; }
+            onAddBooking(dateKey, { clientName:name.trim(), phone:phone.trim(), total:totalNum, paidNow:paidNowNum, method:payMethod });
+            setAddError('');
             onClose();
           }}>
-            <div className="field"><label>اسم الزبون</label><input value={name} onChange={e=>setName(e.target.value)} required/></div>
-            <div className="field"><label>رقم الهاتف</label><input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} required/></div>
-            <div className="field"><label>المبلغ الإجمالي (اوقية)</label><input type="number" value={total} onChange={e=>setTotal(e.target.value)} required/></div>
-            <div className="field"><label>المبلغ المدفوع الآن (اوقية)</label><input type="number" value={paidNow} onChange={e=>setPaidNow(e.target.value)}/></div>
+            {addError && <div className="form-error">{addError}</div>}
+            <div className="field"><label>اسم الزبون</label><input value={name} onChange={e=>{setName(e.target.value);setAddError('');}} required/></div>
+            <div className="field"><label>رقم الهاتف</label><input type="tel" value={phone} onChange={e=>{setPhone(e.target.value);setAddError('');}} required/></div>
+            <div className="field"><label>المبلغ الإجمالي (اوقية)</label><input type="number" value={total} onChange={e=>{setTotal(e.target.value);setAddError('');}} required/></div>
+            <div className="field"><label>المبلغ المدفوع الآن (اوقية)</label><input type="number" value={paidNow} onChange={e=>{setPaidNow(e.target.value);setAddError('');}}/></div>
             <div className="field">
               <label>طريقة الدفع</label>
               <select value={payMethod} onChange={e=>setPayMethod(e.target.value)}>
@@ -1185,7 +1202,7 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
             setEditError('');
             setScreen('view');
           }}>
-            {editError && <div style={{background:'rgba(232,89,143,0.18)', color:'#FBD9E6', fontSize:'.78rem', fontWeight:700, padding:'10px 14px', borderRadius:12, marginBottom:14}}>{editError}</div>}
+            {editError && <div className="form-error">{editError}</div>}
             <div className="field"><label>اسم الزبون</label><input type="text" value={editName} onChange={e=>setEditName(e.target.value)} required/></div>
             <div className="field"><label>رقم الهاتف</label><input type="tel" value={editPhone} onChange={e=>setEditPhone(e.target.value)} required/></div>
             <div className="field"><label>المبلغ الإجمالي (اوقية)</label><input type="number" min="0" value={editTotal} onChange={e=>setEditTotal(e.target.value)} required/></div>
@@ -1205,15 +1222,21 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
             <form onSubmit={e=>{
               e.preventDefault();
               const amt = Number(payAmount);
-              if(!amt || amt <= 0 || amt > remaining) return;
-              onRecordPayment(dateKey, amt, payMethod);
-              setPayAmount('');
+              if(!amt || amt <= 0){ setPayError('يرجى إدخال مبلغ صحيح.'); return; }
+              if(amt > remaining){ setPayError(`المبلغ أكبر من المتبقي (${remaining.toLocaleString('en-US')} اوقية).`); return; }
+              onRecordPayment(dateKey, amt, payMethod, payDate);
+              setPayAmount(''); setPayError('');
               setScreen('view');
             }}>
+              {payError && <div className="form-error">{payError}</div>}
               <div className="field">
                 <label>المبلغ المدفوع الآن (اوقية)</label>
-                <input type="number" value={payAmount} onChange={e=>setPayAmount(e.target.value)} min="1" required/>
-                <button type="button" className="btn-pay-full" onClick={()=>setPayAmount(String(remaining))}>تسديد كامل المبلغ المتبقي</button>
+                <input type="number" value={payAmount} onChange={e=>{setPayAmount(e.target.value);setPayError('');}} min="1" required/>
+                <button type="button" className="btn-pay-full" onClick={()=>{setPayAmount(String(remaining));setPayError('');}}>تسديد كامل المبلغ المتبقي</button>
+              </div>
+              <div className="field">
+                <label>تاريخ الدفعة</label>
+                <input type="date" value={payDate} onChange={e=>setPayDate(e.target.value)}/>
               </div>
               <div className="field">
                 <label>طريقة الدفع</label>
@@ -1226,7 +1249,7 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
                 </select>
               </div>
               <div className="sheet-actions">
-                <button type="button" className="btn-secondary" onClick={()=>setScreen('view')}>إلغاء</button>
+                <button type="button" className="btn-secondary" onClick={()=>{setPayError('');setScreen('view');}}>إلغاء</button>
                 <button type="submit" className="btn-primary">تأكيد الدفعة</button>
               </div>
             </form>
@@ -1267,10 +1290,10 @@ function MainApp({ uid, userDoc }){
     }};
     saveBookings(nb);
   };
-  const recordPayment = (dateKey, amount, method) => {
+  const recordPayment = (dateKey, amount, method, paymentDate) => {
     const day = bookings[dateKey];
     if(!day) return;
-    const nb = { ...bookings, [dateKey]: { ...day, payments: [...(day.payments||[]), { id:'p'+Date.now(), amount, date: toKey(new Date()), method }] } };
+    const nb = { ...bookings, [dateKey]: { ...day, payments: [...(day.payments||[]), { id:'p'+Date.now(), amount, date: paymentDate || toKey(new Date()), method }] } };
     saveBookings(nb);
   };
   const cancelBooking = (dateKey) => {
@@ -1529,12 +1552,25 @@ function MainApp({ uid, userDoc }){
   const [dailyExportDay, setDailyExportDay] = useState(null); // null | dateKey
   const [receiptView, setReceiptView] = useState(null); // null | {dateKey, paymentIndex}
 
-  // Lock the background page from scrolling whenever any sheet/modal is open —
-  // otherwise the page behind it keeps scrolling along with the modal's own content.
+  // Lock the background page from scrolling whenever any sheet/modal is open.
+  // Plain overflow:hidden isn't reliable on iPhone Safari — instead we freeze
+  // the body in place at its current scroll position, then restore it exactly
+  // when the modal closes, which works consistently across all devices.
   useEffect(() => {
     const anyModalOpen = !!(selectedDay || monthlyExportScope !== null || dailyExportDay || receiptView);
-    document.body.style.overflow = anyModalOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
+    if(anyModalOpen){
+      const scrollY = window.scrollY;
+      document.body.style.position = 'fixed';
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = '100%';
+      document.body.dataset.scrollY = String(scrollY);
+    } else if(document.body.style.position === 'fixed'){
+      const scrollY = parseInt(document.body.dataset.scrollY || '0', 10);
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.width = '';
+      window.scrollTo(0, scrollY);
+    }
   }, [selectedDay, monthlyExportScope, dailyExportDay, receiptView]);
 
   const WEEKDAY_NAMES = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
@@ -1670,6 +1706,7 @@ function MainApp({ uid, userDoc }){
   const SettingsPage = () => {
     const [editing, setEditing] = useState(false);
     const [temp, setTemp] = useState(hallName);
+    const [resetMsg, setResetMsg] = useState(null); // {type:'ok'|'error', text}
     const saveName = async () => {
       setHallName(temp);
       await db.collection('users').doc(uid).update({ hallName: temp });
@@ -1697,9 +1734,13 @@ function MainApp({ uid, userDoc }){
           <h4>كلمة المرور</h4>
           <div className="settings-card" style={{padding:16}}>
             <button className="btn-secondary" style={{width:'100%'}} onClick={async()=>{
-              try{ await auth.sendPasswordResetEmail(auth.currentUser.email); alert('تم إرسال بريد إعادة التعيين!'); }
-              catch(e){ alert('حدث خطأ: '+e.message); }
+              try{ await auth.sendPasswordResetEmail(auth.currentUser.email); setResetMsg({type:'ok', text:'تم إرسال بريد إعادة التعيين!'}); }
+              catch(e){ setResetMsg({type:'error', text:'تعذّر الإرسال. حاول مجددًا.'}); }
+              setTimeout(()=>setResetMsg(null), 3500);
             }}>إرسال رابط إعادة تعيين كلمة المرور</button>
+            {resetMsg && (
+              <div className={resetMsg.type==='ok' ? 'form-success' : 'form-error'} style={{marginTop:10, marginBottom:0}}>{resetMsg.text}</div>
+            )}
           </div>
         </div>
         <div className="settings-group">
