@@ -39,6 +39,10 @@
     --coral:#E8598F;
     --coral-soft:#FBDCE9;
   }
+  html{
+    min-height:100%;
+    background:linear-gradient(155deg, var(--mint-1) 0%, var(--mint-2) 45%, var(--teal-3) 100%);
+  }
   *{box-sizing:border-box; margin:0; padding:0;}
   body{
     min-height:100vh;
@@ -51,10 +55,14 @@
   }
 
   .bubble{
-    position:fixed; border-radius:50%;
+    position:absolute; border-radius:50%;
     background:rgba(255,255,255,0.28);
     filter:blur(1px); pointer-events:none; z-index:0;
   }
+
+  /* Phone numbers must stay left-to-right even on an RTL page, or the
+     digit groups get visually reordered by the browser's bidi algorithm. */
+  .ltr-nums{ direction:ltr; unicode-bidi:embed; display:inline-block; }
   .b1{ width:180px; height:180px; top:-60px; left:-50px; }
   .b2{ width:90px; height:90px; top:120px; right:20px; background:rgba(255,255,255,.35); }
   .b3{ width:260px; height:260px; bottom:60px; right:-100px; background:rgba(255,255,255,.18); }
@@ -1021,7 +1029,7 @@ function AuthScreen(){
 
 
 // ── DAY SHEET (matches original .overlay/.sheet/.badge/.deposit-bar design exactly) ──
-function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecordPayment, onCancel, onShare, onOpenReceipt }){
+function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecordPayment, onCancel, onShare, onOpenReceipt, onEditBooking }){
   const [screen, setScreen] = useState(dayData ? 'view' : 'empty');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -1030,6 +1038,10 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
   const [payAmount, setPayAmount] = useState('');
   const [payMethod, setPayMethod] = useState('نقدا');
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editTotal, setEditTotal] = useState('');
+  const [editError, setEditError] = useState('');
 
   const paid = dayData ? (dayData.payments||[]).reduce((a,p)=>a+p.amount,0) : 0;
   const remaining = dayData ? dayData.total - paid : 0;
@@ -1058,13 +1070,23 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
           <form onSubmit={e=>{
             e.preventDefault();
             if(!name.trim() || !phone.trim() || !total) return;
-            onAddBooking(dateKey, { clientName:name.trim(), phone:phone.trim(), total:Number(total), paidNow:Number(paidNow)||0 });
+            onAddBooking(dateKey, { clientName:name.trim(), phone:phone.trim(), total:Number(total), paidNow:Number(paidNow)||0, method:payMethod });
             onClose();
           }}>
             <div className="field"><label>اسم الزبون</label><input value={name} onChange={e=>setName(e.target.value)} required/></div>
             <div className="field"><label>رقم الهاتف</label><input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} required/></div>
             <div className="field"><label>المبلغ الإجمالي (اوقية)</label><input type="number" value={total} onChange={e=>setTotal(e.target.value)} required/></div>
             <div className="field"><label>المبلغ المدفوع الآن (اوقية)</label><input type="number" value={paidNow} onChange={e=>setPaidNow(e.target.value)}/></div>
+            <div className="field">
+              <label>طريقة الدفع</label>
+              <select value={payMethod} onChange={e=>setPayMethod(e.target.value)}>
+                <option value="نقدا">نقدا</option>
+                <option value="Bankily">Bankily</option>
+                <option value="Masrvi">Masrvi</option>
+                <option value="Sedad">Sedad</option>
+                <option value="أخرى">أخرى</option>
+              </select>
+            </div>
             <div className="sheet-actions">
               <button type="button" className="btn-secondary" onClick={()=>setScreen('empty')}>إلغاء</button>
               <button type="submit" className="btn-primary">حفظ الحجز</button>
@@ -1076,7 +1098,7 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
           <>
             <div className="ds-date">{dateLabel}</div>
             <span className={`badge ${status}`}>{status==='pending'?'متبقي مبلغ':'محجوز'}</span>
-            <div className="info-row"><span>الهاتف</span><span>{formatPhone(dayData.phone)}</span></div>
+            <div className="info-row"><span>الهاتف</span><span className="ltr-nums">{formatPhone(dayData.phone)}</span></div>
             <div className="info-row"><span>المبلغ الإجمالي</span><span>{dayData.total.toLocaleString('en-US')} اوقية</span></div>
             <div className="info-row"><span>المدفوع</span><span>{paid.toLocaleString('en-US')} اوقية</span></div>
             <div className="deposit-bar"><div className="deposit-fill" style={{width:pct+'%'}}></div></div>
@@ -1102,7 +1124,13 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
             <button className="btn-secondary" style={{width:'100%', marginTop:10}} onClick={onShare}>مشاركة مع الزبون</button>
 
             {!confirmCancel ? (
-              <button className="btn-secondary" style={{width:'100%', marginTop:10}} onClick={()=>setConfirmCancel(true)}>إلغاء الحجز</button>
+              <div style={{display:'flex', gap:10, marginTop:10}}>
+                <button className="btn-secondary" style={{flex:1}} onClick={()=>{
+                  setEditName(dayData.clientName); setEditPhone(dayData.phone); setEditTotal(String(dayData.total));
+                  setScreen('edit');
+                }}>تعديل التفاصيل</button>
+                <button className="btn-secondary" style={{flex:1, background:'rgba(232,89,143,0.18)', color:'#FBD9E6'}} onClick={()=>setConfirmCancel(true)}>إلغاء الحجز</button>
+              </div>
             ) : (
               <div className="sheet-actions" style={{marginTop:10}}>
                 <button className="btn-secondary" onClick={()=>setConfirmCancel(false)}>تراجع</button>
@@ -1110,6 +1138,27 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
               </div>
             )}
           </>
+        )}
+
+        {screen === 'edit' && dayData && (
+          <form onSubmit={e=>{
+            e.preventDefault();
+            const newTotal = Number(editTotal);
+            if(!editName.trim() || !editPhone.trim() || !newTotal) return;
+            if(newTotal < paid){ setEditError(`لا يمكن أن يكون المبلغ الإجمالي أقل من المدفوع بالفعل (${paid.toLocaleString('en-US')} اوقية)`); return; }
+            onEditBooking(dateKey, { clientName:editName.trim(), phone:editPhone.trim(), total:newTotal });
+            setEditError('');
+            setScreen('view');
+          }}>
+            {editError && <div style={{background:'rgba(232,89,143,0.18)', color:'#FBD9E6', fontSize:'.78rem', fontWeight:700, padding:'10px 14px', borderRadius:12, marginBottom:14}}>{editError}</div>}
+            <div className="field"><label>اسم الزبون</label><input type="text" value={editName} onChange={e=>setEditName(e.target.value)} required/></div>
+            <div className="field"><label>رقم الهاتف</label><input type="tel" value={editPhone} onChange={e=>setEditPhone(e.target.value)} required/></div>
+            <div className="field"><label>المبلغ الإجمالي (اوقية)</label><input type="number" min="0" value={editTotal} onChange={e=>setEditTotal(e.target.value)} required/></div>
+            <div className="sheet-actions">
+              <button type="button" className="btn-secondary" onClick={()=>{setEditError('');setScreen('view');}}>إلغاء</button>
+              <button type="submit" className="btn-primary">حفظ التعديلات</button>
+            </div>
+          </form>
         )}
 
         {screen === 'pay' && dayData && (
@@ -1175,10 +1224,10 @@ function MainApp({ uid, userDoc }){
     await db.collection('bookings').doc(uid).set({ data: nb }, { merge: false });
   }, [uid]);
 
-  const addBooking = (dateKey, { clientName, phone, total, paidNow }) => {
+  const addBooking = (dateKey, { clientName, phone, total, paidNow, method }) => {
     const nb = { ...bookings, [dateKey]: {
       clientName, phone, total,
-      payments: paidNow > 0 ? [{ id:'p'+Date.now(), amount: paidNow, date: toKey(new Date()) }] : [],
+      payments: paidNow > 0 ? [{ id:'p'+Date.now(), amount: paidNow, date: toKey(new Date()), method }] : [],
     }};
     saveBookings(nb);
   };
@@ -1191,6 +1240,12 @@ function MainApp({ uid, userDoc }){
   const cancelBooking = (dateKey) => {
     const nb = { ...bookings };
     delete nb[dateKey];
+    saveBookings(nb);
+  };
+  const editBooking = (dateKey, { clientName, phone, total }) => {
+    const day = bookings[dateKey];
+    if(!day) return;
+    const nb = { ...bookings, [dateKey]: { ...day, clientName, phone, total } };
     saveBookings(nb);
   };
 
@@ -1323,7 +1378,7 @@ function MainApp({ uid, userDoc }){
                 </div>
                 <div className="agenda-info">
                   <div className="name">{b.clientName}</div>
-                  <div className="meta">{formatPhone(b.phone)}</div>
+                  <div className="meta ltr-nums">{formatPhone(b.phone)}</div>
                 </div>
                 <div className="agenda-status">{b.status==='pending'?'متبقي مبلغ':'محجوز'}</div>
               </div>
@@ -1421,7 +1476,7 @@ function MainApp({ uid, userDoc }){
                     </div>
                     <div className="agenda-info">
                       <div className="name">{b.clientName}</div>
-                      <div className="meta">{formatPhone(b.phone)} · {b.paid.toLocaleString('en-US')} / {b.total.toLocaleString('en-US')} اوقية</div>
+                      <div className="meta"><span className="ltr-nums">{formatPhone(b.phone)}</span> · {b.paid.toLocaleString('en-US')} / {b.total.toLocaleString('en-US')} اوقية</div>
                     </div>
                     <div className="agenda-status">{b.status==='pending'?'متبقي مبلغ':'محجوز'}</div>
                   </div>
@@ -1475,7 +1530,7 @@ function MainApp({ uid, userDoc }){
                   <tr key={b.dk}>
                     <td>{d.getDate()} {MONTH_NAMES[d.getMonth()]}</td>
                     <td>{b.clientName}</td>
-                    <td>{formatPhone(b.phone)}</td>
+                    <td className="ltr-nums">{formatPhone(b.phone)}</td>
                     <td>محجوز</td>
                   </tr>
                 );
@@ -1516,7 +1571,7 @@ function MainApp({ uid, userDoc }){
             <div className="date-big">{d.getDate()} {MONTH_NAMES[d.getMonth()]} {d.getFullYear()}</div>
             <div className="weekday">{WEEKDAY_NAMES[d.getDay()]}</div>
             <div className="slip-row"><span>الزبون</span><span>{dayData.clientName}</span></div>
-            <div className="slip-row"><span>الهاتف</span><span>{formatPhone(dayData.phone)}</span></div>
+            <div className="slip-row"><span>الهاتف</span><span className="ltr-nums">{formatPhone(dayData.phone)}</span></div>
             <div className="slip-row"><span>المبلغ الإجمالي</span><span>{dayData.total.toLocaleString('en-US')} اوقية</span></div>
             <div className={`badge-big ${status}`}>محجوز</div>
             <div className="note">يرجى إبراز هذا التصريح لحارس القاعة عند الوصول يوم المناسبة.</div>
@@ -1552,7 +1607,7 @@ function MainApp({ uid, userDoc }){
           <div className="doc-title"><h2>إيصال دفع</h2><p>{p.date}</p></div>
           <div>
             <div className="slip-row"><span>الزبون</span><span>{dayData.clientName}</span></div>
-            <div className="slip-row"><span>الهاتف</span><span>{formatPhone(dayData.phone)}</span></div>
+            <div className="slip-row"><span>الهاتف</span><span className="ltr-nums">{formatPhone(dayData.phone)}</span></div>
             <div className="slip-row"><span>تاريخ المناسبة</span><span>{d.getDate()} {MONTH_NAMES[d.getMonth()]} {d.getFullYear()}</span></div>
             <div className="slip-row"><span>طريقة الدفع</span><span>{p.method || 'نقدا'}</span></div>
             <div className="slip-row"><span>المبلغ المدفوع (هذه الدفعة)</span><span>{p.amount.toLocaleString('en-US')} اوقية</span></div>
@@ -1630,11 +1685,6 @@ function MainApp({ uid, userDoc }){
         <p>لتنظيم الأفراح والمناسبات</p>
       </header>
 
-      <div className="owner-row">
-        <span>أهلاً بك 👋</span>
-        <a href="#" className="logout" onClick={e=>{e.preventDefault();auth.signOut();}}>تسجيل الخروج</a>
-      </div>
-
       <main>
         {page === 'home' && <HomePage/>}
         {page === 'agenda' && <AgendaPage/>}
@@ -1666,6 +1716,7 @@ function MainApp({ uid, userDoc }){
           onAddBooking={addBooking}
           onRecordPayment={recordPayment}
           onCancel={cancelBooking}
+          onEditBooking={editBooking}
           onShare={()=>setDailyExportDay(selectedDay)}
           onOpenReceipt={(idx)=>setReceiptView({dateKey:selectedDay, paymentIndex:idx})}
         />
