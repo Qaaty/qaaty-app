@@ -43,7 +43,6 @@
     min-height:100%;
     background:linear-gradient(155deg, var(--mint-1) 0%, var(--mint-2) 45%, var(--teal-3) 100%);
     overflow-x:hidden;
-    overscroll-behavior-y:none;
     scrollbar-width:thin;
     scrollbar-color:rgba(77,72,196,.35) transparent;
   }
@@ -58,7 +57,6 @@
     background:linear-gradient(155deg, var(--mint-1) 0%, var(--mint-2) 45%, var(--teal-3) 100%);
     position:relative;
     overflow-x:hidden;
-    overscroll-behavior-y:none;
     padding-bottom:100px;
   }
 
@@ -637,7 +635,7 @@
 
   .print-overlay{
     position:fixed; inset:0; z-index:20;
-    background:#EDEDF5;
+    background:#E4E1F7;
     display:none;
     overflow-y:auto;
     padding:0 0 100px;
@@ -740,13 +738,24 @@
        matter how deep it's nested. */
     body *{ visibility:hidden; }
     .print-overlay, .print-overlay *{ visibility:visible; }
+    /* position:static (not fixed or absolute) avoids a known print-pagination
+       bug in Safari/WebKit where positioned elements can misbehave or repeat
+       across pages. overflow:visible + height:auto lets the browser paginate
+       freely across as many pages as the content needs, instead of clipping
+       everything to one screen-height window (which was cutting PDFs short). */
+    html, body{ height:auto !important; overflow:visible !important; }
     .print-overlay{
-      position:absolute; top:0; left:0; width:100%;
-      background:#fff; padding:0;
+      position:static !important;
+      overflow:visible !important; height:auto !important; max-height:none !important;
+      width:100%; background:#fff; padding:0;
     }
-    .print-topbar{ display:none !important; }
+    .print-topbar{ display:none !important; position:static !important; }
     .no-print{ display:none !important; }
     .doc{ box-shadow:none; margin:0; max-width:100%; }
+    /* Many browsers strip background colors when printing by default (to
+       save ink) unless explicitly told not to — this is why the green/pink
+       status colors were showing on some devices and not others. */
+    *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
   }
 
 
@@ -1748,8 +1757,8 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
                   <tr key={b.dk}>
                     <td>{d.getDate()} {MONTH_NAMES[d.getMonth()]}</td>
                     <td>{b.clientName}</td>
-                    <td className="ltr-nums">{formatPhone(b.phone)}</td>
-                    <td><span className={`status-pill ${status}`}>{status==='pending'?'متبقي مبلغ':'محجوز'}</span></td>
+                    <td><span className="ltr-nums">{formatPhone(b.phone)}</span></td>
+                    <td><span className={`status-pill ${status}`}>محجوز</span></td>
                   </tr>
                 );
               })}
@@ -2110,6 +2119,35 @@ function App(){
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
   }, [lang]);
+
+  // Blocks the white rubber-band bounce on iPhone without touching how
+  // scrolling behaves anywhere else. The CSS property that normally does
+  // this (overscroll-behavior) turned out to break single-finger scrolling
+  // entirely on Samsung's browser, so instead this only steps in at the
+  // exact moment someone drags past the very top or very bottom of the
+  // page — everywhere else it does nothing and stays out of the way.
+  useEffect(() => {
+    let startY = 0;
+    const onTouchStart = (e) => { startY = e.touches[0].clientY; };
+    const onTouchMove = (e) => {
+      // Sheets, PDFs, and the login screen scroll independently of the main
+      // page — let the browser handle those on its own, don't interfere.
+      if(e.target.closest('.sheet, .print-overlay, .login-screen')) return;
+      const y = e.touches[0].clientY;
+      const goingDown = y > startY; // finger moving downward = trying to pull content down
+      const atTop = window.scrollY <= 0;
+      const atBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 1;
+      if((atTop && goingDown) || (atBottom && !goingDown)){
+        e.preventDefault();
+      }
+    };
+    document.addEventListener('touchstart', onTouchStart, { passive: true });
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchmove', onTouchMove);
+    };
+  }, []);
 
   useEffect(() => {
     db.collection('settings').doc('contact').get().then(snap => {
