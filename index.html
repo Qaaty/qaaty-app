@@ -1884,7 +1884,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
 
 <script>
 if("serviceWorker" in navigator){
-  // Network-first strategy applied from day one — avoids the StadBook caching trap entirely.
+  navigator.serviceWorker.register("sw.js");
 }
 </script>
 </body>
