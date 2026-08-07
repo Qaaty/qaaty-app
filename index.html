@@ -981,7 +981,7 @@ function AuthScreen(){
 
 
 // ── DAY SHEET (matches original .overlay/.sheet/.badge/.deposit-bar design exactly) ──
-function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecordPayment, onCancel }){
+function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecordPayment, onCancel, onShare, onOpenReceipt }){
   const [screen, setScreen] = useState(dayData ? 'view' : 'empty');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -1048,12 +1048,18 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
               {sortedPayments.map((p,i) => (
                 <div className="payment-row" key={p.id||i}>
                   <span className="p-date">{p.date} · {p.method || 'نقدا'}</span>
-                  <span className="p-amount">{p.amount.toLocaleString('en-US')} اوقية</span>
+                  <span style={{display:'flex', alignItems:'center', gap:10}}>
+                    <span className="p-amount">{p.amount.toLocaleString('en-US')} اوقية</span>
+                    <button className="receipt-icon-btn" aria-label="طباعة الإيصال" onClick={()=>onOpenReceipt(dayData.payments.indexOf(p))}>
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+                    </button>
+                  </span>
                 </div>
               ))}
             </div>
 
             {remaining > 0 && <button className="btn-primary" style={{width:'100%', marginTop:16}} onClick={()=>setScreen('pay')}>+ تسجيل دفعة</button>}
+            <button className="btn-secondary" style={{width:'100%', marginTop:10}} onClick={onShare}>مشاركة مع الزبون</button>
 
             {!confirmCancel ? (
               <button className="btn-secondary" style={{width:'100%', marginTop:10}} onClick={()=>setConfirmCancel(true)}>إلغاء الحجز</button>
@@ -1255,6 +1261,9 @@ function MainApp({ uid, userDoc }){
               return <option key={mk} value={mk}>{MONTH_NAMES[parseInt(m,10)-1]} {y}</option>;
             })}
           </select>
+          <button className="export-icon-btn" aria-label="تصدير الجدول للحارس" onClick={()=>setMonthlyExportScope(monthFilter)}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+          </button>
         </div>
         <div className="filter-chips">
           <button className={`chip ${filter==='all'?'active':''}`} onClick={()=>setFilter('all')}>الكل</button>
@@ -1385,6 +1394,140 @@ function MainApp({ uid, userDoc }){
     );
   };
 
+  const [monthlyExportScope, setMonthlyExportScope] = useState(null); // null | 'all' | 'YYYY-MM'
+  const [dailyExportDay, setDailyExportDay] = useState(null); // null | dateKey
+  const [receiptView, setReceiptView] = useState(null); // null | {dateKey, paymentIndex}
+
+  const WEEKDAY_NAMES = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+
+  const MonthlyExportModal = ({ scope, onClose }) => {
+    const entries = Object.entries(bookings)
+      .filter(([dk]) => scope === 'all' || dk.slice(0,7) === scope)
+      .map(([dk,b]) => ({ dk, ...b }))
+      .sort((a,b)=>a.dk.localeCompare(b.dk));
+    const title = scope === 'all'
+      ? 'جدول المناسبات — كل الأشهر'
+      : (() => { const [y,m]=scope.split('-'); return `جدول المناسبات — ${MONTH_NAMES[parseInt(m,10)-1]} ${y}`; })();
+
+    return (
+      <div className="print-overlay open">
+        <div className="print-topbar">
+          <button onClick={onClose} aria-label="إغلاق">✕</button>
+          <button className="print-btn" onClick={()=>window.print()}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+            طباعة / حفظ PDF
+          </button>
+        </div>
+        <div className="doc">
+          <div className="doc-header">
+            <div className="brand">
+              <div className="mark">ق</div>
+              <div><h1>{hallName}</h1><div className="sub">لتنظيم الأفراح والمناسبات</div></div>
+            </div>
+          </div>
+          <div className="doc-title"><h2>{title}</h2><p>للمشاركة مع حارس القاعة</p></div>
+          <table>
+            <thead><tr><th>التاريخ</th><th>الزبون</th><th>الهاتف</th><th>الحالة</th></tr></thead>
+            <tbody>
+              {entries.map(b => {
+                const d = new Date(b.dk+'T12:00:00');
+                return (
+                  <tr key={b.dk}>
+                    <td>{d.getDate()} {MONTH_NAMES[d.getMonth()]}</td>
+                    <td>{b.clientName}</td>
+                    <td>{formatPhone(b.phone)}</td>
+                    <td>محجوز</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div className="doc-footer">
+            <span>تم الإصدار بتاريخ {new Date().toLocaleDateString('en-GB')}</span>
+            <span>قاعتي</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const DailyExportModal = ({ dateKey, dayData, onClose }) => {
+    const d = new Date(dateKey+'T12:00:00');
+    const paid = (dayData.payments||[]).reduce((a,p)=>a+p.amount,0);
+    const status = paid < dayData.total ? 'pending' : 'booked';
+    return (
+      <div className="print-overlay open">
+        <div className="print-topbar">
+          <button onClick={onClose} aria-label="إغلاق">✕</button>
+          <button className="print-btn" onClick={()=>window.print()}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+            طباعة / حفظ PDF
+          </button>
+        </div>
+        <div className="doc">
+          <div className="doc-header">
+            <div className="brand">
+              <div className="mark">ق</div>
+              <div><h1>{hallName}</h1><div className="sub">لتنظيم الأفراح والمناسبات</div></div>
+            </div>
+          </div>
+          <div className="slip">
+            <div className="authorize">تصريح دخول لليوم</div>
+            <div className="date-big">{d.getDate()} {MONTH_NAMES[d.getMonth()]} {d.getFullYear()}</div>
+            <div className="weekday">{WEEKDAY_NAMES[d.getDay()]}</div>
+            <div className="slip-row"><span>الزبون</span><span>{dayData.clientName}</span></div>
+            <div className="slip-row"><span>الهاتف</span><span>{formatPhone(dayData.phone)}</span></div>
+            <div className="slip-row"><span>المبلغ الإجمالي</span><span>{dayData.total.toLocaleString('en-US')} اوقية</span></div>
+            <div className={`badge-big ${status}`}>محجوز</div>
+            <div className="note">يرجى إبراز هذا التصريح لحارس القاعة عند الوصول يوم المناسبة.</div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const ReceiptModal = ({ dateKey, dayData, paymentIndex, onClose }) => {
+    const p = (dayData.payments||[])[paymentIndex];
+    if(!p) return null;
+    const d = new Date(dateKey+'T12:00:00');
+    const paidSoFar = (dayData.payments||[]).reduce((a,x)=>a+x.amount,0);
+    const remaining = dayData.total - paidSoFar;
+    const isFull = remaining <= 0;
+    return (
+      <div className="print-overlay open">
+        <div className="print-topbar">
+          <button onClick={onClose} aria-label="إغلاق">✕</button>
+          <button className="print-btn" onClick={()=>window.print()}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+            طباعة / حفظ PDF
+          </button>
+        </div>
+        <div className="doc">
+          <div className="doc-header">
+            <div className="brand">
+              <div className="mark">ق</div>
+              <div><h1>{hallName}</h1><div className="sub">لتنظيم الأفراح والمناسبات</div></div>
+            </div>
+          </div>
+          <div className="doc-title"><h2>إيصال دفع</h2><p>{p.date}</p></div>
+          <div>
+            <div className="slip-row"><span>الزبون</span><span>{dayData.clientName}</span></div>
+            <div className="slip-row"><span>الهاتف</span><span>{formatPhone(dayData.phone)}</span></div>
+            <div className="slip-row"><span>تاريخ المناسبة</span><span>{d.getDate()} {MONTH_NAMES[d.getMonth()]} {d.getFullYear()}</span></div>
+            <div className="slip-row"><span>طريقة الدفع</span><span>{p.method || 'نقدا'}</span></div>
+            <div className="slip-row"><span>المبلغ المدفوع (هذه الدفعة)</span><span>{p.amount.toLocaleString('en-US')} اوقية</span></div>
+            <div className="slip-row"><span>المبلغ الإجمالي للحجز</span><span>{dayData.total.toLocaleString('en-US')} اوقية</span></div>
+            <div className="slip-row"><span>مجموع المدفوع لحد الآن</span><span>{paidSoFar.toLocaleString('en-US')} اوقية</span></div>
+            <div className={`receipt-highlight ${isFull?'paid-full':'paid-partial'}`}>
+              <div className="rh-label">{isFull?'تم سداد المبلغ بالكامل':'المبلغ المتبقي'}</div>
+              {!isFull && <div className="rh-value">{remaining.toLocaleString('en-US')} اوقية</div>}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const SettingsPage = () => {
     const [editing, setEditing] = useState(false);
     const [temp, setTemp] = useState(hallName);
@@ -1483,7 +1626,19 @@ function MainApp({ uid, userDoc }){
           onAddBooking={addBooking}
           onRecordPayment={recordPayment}
           onCancel={cancelBooking}
+          onShare={()=>setDailyExportDay(selectedDay)}
+          onOpenReceipt={(idx)=>setReceiptView({dateKey:selectedDay, paymentIndex:idx})}
         />
+      )}
+
+      {monthlyExportScope !== null && (
+        <MonthlyExportModal scope={monthlyExportScope} onClose={()=>setMonthlyExportScope(null)}/>
+      )}
+      {dailyExportDay && bookings[dailyExportDay] && (
+        <DailyExportModal dateKey={dailyExportDay} dayData={bookings[dailyExportDay]} onClose={()=>setDailyExportDay(null)}/>
+      )}
+      {receiptView && bookings[receiptView.dateKey] && (
+        <ReceiptModal dateKey={receiptView.dateKey} dayData={bookings[receiptView.dateKey]} paymentIndex={receiptView.paymentIndex} onClose={()=>setReceiptView(null)}/>
       )}
     </>
   );
