@@ -471,6 +471,21 @@
     border-radius:16px; padding:14px; font-family:'Tajawal', sans-serif;
     font-weight:800; font-size:.86rem; cursor:pointer; margin-top:6px;
   }
+  .btn-edit-light{
+    background:rgba(77,72,196,.12); color:var(--teal-deep); border:none;
+    border-radius:12px; padding:6px 14px; font-family:'Tajawal', sans-serif;
+    font-weight:800; font-size:.78rem; cursor:pointer;
+  }
+  .btn-save-light{
+    background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); color:#fff; border:none;
+    border-radius:12px; padding:10px 16px; font-family:'Tajawal', sans-serif;
+    font-weight:800; font-size:.85rem; cursor:pointer;
+  }
+  .export-earnings-btn{
+    width:100%; margin-bottom:16px; display:flex; align-items:center; justify-content:center; gap:8px;
+    background:rgba(77,72,196,.12); color:var(--teal-deep); border:none;
+    border-radius:14px; padding:13px; font-family:'Tajawal', sans-serif; font-weight:800; font-size:.85rem; cursor:pointer;
+  }
 
   /* ---------- Login screen ---------- */
   .login-screen{
@@ -732,11 +747,6 @@
 <div id="root"></div>
 
 <script>
-  // ===================================================================
-  // FIREBASE CONFIG — replace these placeholder values with your real
-  // project's config once you've created the Firebase project.
-  // Firebase Console → Project Settings → Your apps → Web app → Config
-  // ===================================================================
   firebase.initializeApp({
     apiKey: "AIzaSyD7PJk2IVq91EDMfo-EwPLVXQ5db0VaCe8",
     authDomain: "qaaty-321f7.firebaseapp.com",
@@ -838,8 +848,7 @@ const LOGIN_T = {
 
 
 // ── AUTH SCREEN ──────────────────────────────────────────────────────────
-function AuthScreen(){
-  const [lang, setLang] = useState('ar');
+function AuthScreen({ lang, onLangChange }){
   const [panel, setPanel] = useState('auth'); // auth | pending | forgot
   const [mode, setMode] = useState('login'); // login | signup
   const [loginPhone, setLoginPhone] = useState('');
@@ -856,13 +865,8 @@ function AuthScreen(){
   const [loading, setLoading] = useState(false);
   const [whatsapp, setWhatsapp] = useState('+222 XX XX XX XX');
   const t = LOGIN_T[lang];
-
-  // the whole document's text direction must actually change with language —
-  // not just the visible labels — or French/English still read right-to-left.
-  useEffect(() => {
-    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
-    document.documentElement.lang = lang;
-  }, [lang]);
+  // Text direction (dir/lang on <html>) is now handled once, globally, at the
+  // App root — so it stays in sync everywhere, not just on this screen.
 
   const EyeIcon = ({ shown }) => shown ? (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -927,7 +931,7 @@ function AuthScreen(){
         <div className="login-card">
           <div className="login-lang-switch">
             {['ar','fr','en'].map(l => (
-              <button key={l} className={lang===l?'active':''} onClick={()=>setLang(l)}>
+              <button key={l} className={lang===l?'active':''} onClick={()=>onLangChange(l)}>
                 {l==='ar'?'🇲🇷 AR':l==='fr'?'🇫🇷 FR':'🇬🇧 EN'}
               </button>
             ))}
@@ -955,7 +959,7 @@ function AuthScreen(){
         <div className="login-card">
           <div className="login-lang-switch">
             {['ar','fr','en'].map(l => (
-              <button key={l} className={lang===l?'active':''} onClick={()=>setLang(l)}>
+              <button key={l} className={lang===l?'active':''} onClick={()=>onLangChange(l)}>
                 {l==='ar'?'🇲🇷 AR':l==='fr'?'🇫🇷 FR':'🇬🇧 EN'}
               </button>
             ))}
@@ -982,7 +986,7 @@ function AuthScreen(){
       <div className="login-card">
         <div className="login-lang-switch">
           {['ar','fr','en'].map(l => (
-            <button key={l} className={lang===l?'active':''} onClick={()=>setLang(l)}>
+            <button key={l} className={lang===l?'active':''} onClick={()=>onLangChange(l)}>
               {l==='ar'?'🇲🇷 AR':l==='fr'?'🇫🇷 FR':'🇬🇧 EN'}
             </button>
           ))}
@@ -1222,6 +1226,7 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
             onAddBooking(dateKey, { clientName:name.trim(), phone:phone.trim(), total:totalNum, paidNow:paidNowNum, method:payMethod });
             setAddError('');
             onClose();
+            if(paidNowNum > 0) onOpenReceipt(0); // a payment was made at booking time — show the receipt right away
           }}>
             {addError && <div className="form-error">{addError}</div>}
             <div className="field"><label>اسم الزبون</label><input value={name} onChange={e=>{setName(e.target.value);setAddError('');}} required/></div>
@@ -1323,9 +1328,11 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
               const amt = Number(payAmount);
               if(!amt || amt <= 0){ setPayError('يرجى إدخال مبلغ صحيح.'); return; }
               if(amt > remaining){ setPayError(`المبلغ أكبر من المتبقي (${remaining.toLocaleString('en-US')} اوقية).`); return; }
+              const newPaymentIndex = (dayData.payments||[]).length; // index the new payment will occupy
               onRecordPayment(dateKey, amt, payMethod, payDate);
               setPayAmount(''); setPayError('');
               setScreen('view');
+              onOpenReceipt(newPaymentIndex);
             }}>
               {payError && <div className="form-error">{payError}</div>}
               <div className="field">
@@ -1360,13 +1367,17 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
 }
 
 // ── MAIN APP (after login, once account is active) — matches original header/cards/calendar exactly ──
-function MainApp({ uid, userDoc }){
+function MainApp({ uid, userDoc, lang, onLangChange }){
   const [page, setPage] = useState('home');
   const [bookings, setBookings] = useState({});
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [selectedDay, setSelectedDay] = useState(null);
   const [hallName, setHallName] = useState(userDoc.hallName || 'قاعتي');
+  const [hallPhone, setHallPhone] = useState(userDoc.hallPhone || userDoc.phone || '');
+  const [hallAddress, setHallAddress] = useState(userDoc.hallAddress || '');
+  const [tagline, setTagline] = useState(userDoc.tagline || 'لتنظيم الأفراح والمناسبات');
+  const [badgeLetter, setBadgeLetter] = useState(userDoc.badgeLetter || (userDoc.hallName || 'ق').trim().charAt(0));
 
   useEffect(() => { setHallName(userDoc.hallName || 'قاعتي'); }, [userDoc.hallName]);
 
@@ -1436,7 +1447,7 @@ function MainApp({ uid, userDoc }){
     <div className="page active" id="page-home">
       <div className="cards" style={{gridTemplateColumns:'1fr 1fr'}}>
         <div className="card">
-          <div className="label">المداخيل هذا الشهر</div>
+          <div className="label">مداخيل حجوزات الشهر</div>
           <div className="value">{fmtM(monthRevenue)} اوقية</div>
           <div className="sub">من {monthEntries.length} حجوزات</div>
         </div>
@@ -1550,93 +1561,118 @@ function MainApp({ uid, userDoc }){
   const EarningsPage = () => {
     const [drilledMonth, setDrilledMonth] = useState(null);
 
+    // Flatten every payment across every booking into one list, tagged with
+    // its own real payment date — this is the source of truth for "earnings",
+    // completely independent of which month the underlying event falls in.
+    const allPayments = useMemo(() => {
+      const list = [];
+      Object.entries(bookings).forEach(([dk, b]) => {
+        (b.payments||[]).forEach(p => {
+          list.push({ ...p, bookingDateKey: dk, clientName: b.clientName, phone: b.phone });
+        });
+      });
+      return list;
+    }, [bookings]);
+
     const statsForMonthKey = (mk) => {
-      const entries = Object.entries(bookings).filter(([dk]) => dk.slice(0,7) === mk).map(([,b])=>b);
-      const total = entries.reduce((s,b)=>s+(b.payments||[]).reduce((a,p)=>a+p.amount,0), 0);
-      const remaining = entries.reduce((s,b)=>{
+      const pays = allPayments.filter(p => (p.date||'').slice(0,7) === mk);
+      const total = pays.reduce((s,p)=>s+p.amount, 0);
+      return { total, count: pays.length };
+    };
+    const remainingAcrossAllBookings = useMemo(() => {
+      return Object.values(bookings).reduce((s,b)=>{
         const paid = (b.payments||[]).reduce((a,p)=>a+p.amount,0);
         return s + Math.max(0, b.total - paid);
       }, 0);
-      return { total, remaining, count: entries.length };
-    };
-    const allMonthKeys = useMemo(() => Array.from(new Set(Object.keys(bookings).map(dk=>dk.slice(0,7)))).sort(), [bookings]);
+    }, [bookings]);
+
+    const allMonthKeys = useMemo(() => Array.from(new Set(allPayments.map(p=>(p.date||'').slice(0,7)))).filter(Boolean).sort(), [allPayments]);
     const statsAll = useMemo(() => allMonthKeys.reduce((acc,mk)=>{
       const s = statsForMonthKey(mk);
-      acc.total+=s.total; acc.remaining+=s.remaining; acc.count+=s.count;
+      acc.total+=s.total; acc.count+=s.count;
       return acc;
-    }, {total:0,remaining:0,count:0}), [bookings, allMonthKeys]);
+    }, {total:0,count:0}), [bookings, allMonthKeys]);
 
-    const shown = drilledMonth ? statsForMonthKey(drilledMonth) : statsAll;
-    const label = drilledMonth ? 'مداخيل الشهر' : 'إجمالي المداخيل';
+    const shownTotal = drilledMonth ? statsForMonthKey(drilledMonth).total : statsAll.total;
+    const shownCount = drilledMonth ? statsForMonthKey(drilledMonth).count : statsAll.count;
 
-    const monthBookings = useMemo(() => {
+    const monthPayments = useMemo(() => {
       if(!drilledMonth) return [];
-      return Object.entries(bookings)
-        .filter(([dk]) => dk.slice(0,7) === drilledMonth)
-        .map(([dk,b]) => {
-          const paid = (b.payments||[]).reduce((a,p)=>a+p.amount,0);
-          return { dk, ...b, paid, status: paid < b.total ? 'pending' : 'booked' };
-        })
-        .sort((a,b)=>a.dk.localeCompare(b.dk));
-    }, [bookings, drilledMonth]);
+      return allPayments
+        .filter(p => (p.date||'').slice(0,7) === drilledMonth)
+        .sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    }, [allPayments, drilledMonth]);
 
     return (
       <div className="page active">
-        <div className="cards" style={{gridTemplateColumns:'1fr 1fr', marginBottom:18}}>
-          <div className="card">
-            <div className="label">{label}</div>
-            <div className="value">{fmtM(shown.total)} اوقية</div>
-            <div className="sub">{shown.count} حجوزات</div>
-          </div>
-          <div className="card accent">
-            <div className="label">المتبقي من العروبين</div>
-            <div className="value">{fmtM(shown.remaining)} اوقية</div>
-            <div className="sub">عبر الحجوزات المعلقة</div>
-          </div>
-        </div>
-
         {!drilledMonth ? (
-          <div className="agenda-list">
-            {allMonthKeys.length === 0 && <div className="empty-state">لا توجد بيانات بعد</div>}
-            {allMonthKeys.map(mk => {
-              const s = statsForMonthKey(mk);
-              const [y,m] = mk.split('-');
-              return (
-                <div className="month-card" key={mk} onClick={()=>setDrilledMonth(mk)}>
-                  <div>
-                    <div className="mc-name">{MONTH_NAMES[parseInt(m,10)-1]} {y}</div>
-                    <div className="mc-sub">{s.count} حجوزات</div>
+          <>
+            <div className="cards" style={{gridTemplateColumns:'1fr 1fr', marginBottom:18}}>
+              <div className="card">
+                <div className="label">إجمالي المداخيل</div>
+                <div className="value">{fmtM(shownTotal)} اوقية</div>
+                <div className="sub">{shownCount} دفعات</div>
+              </div>
+              <div className="card accent">
+                <div className="label">المتبقي من العروبين</div>
+                <div className="value">{fmtM(remainingAcrossAllBookings)} اوقية</div>
+                <div className="sub">عبر الحجوزات المعلقة</div>
+              </div>
+            </div>
+            <button className="export-earnings-btn" onClick={()=>setEarningsExportScope('all')}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+              تصدير كل السجل PDF
+            </button>
+            <div className="agenda-list">
+              {allMonthKeys.length === 0 && <div className="empty-state">لا توجد بيانات بعد</div>}
+              {allMonthKeys.map(mk => {
+                const s = statsForMonthKey(mk);
+                const [y,m] = mk.split('-');
+                return (
+                  <div className="month-card" key={mk} onClick={()=>setDrilledMonth(mk)}>
+                    <div>
+                      <div className="mc-name">{MONTH_NAMES[parseInt(m,10)-1]} {y}</div>
+                      <div className="mc-sub">{s.count} دفعات</div>
+                    </div>
+                    <div style={{display:'flex', alignItems:'center', gap:10}}>
+                      <div className="mc-total">{fmtM(s.total)} اوقية</div>
+                      <span className="mc-arrow">‹</span>
+                    </div>
                   </div>
-                  <div style={{display:'flex', alignItems:'center', gap:10}}>
-                    <div className="mc-total">{fmtM(s.total)} اوقية</div>
-                    <span className="mc-arrow">‹</span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </>
         ) : (
           <>
             <div className="month-detail-head">
               <button onClick={()=>setDrilledMonth(null)} aria-label="رجوع">‹</button>
               <h2>{(() => { const [y,m]=drilledMonth.split('-'); return `${MONTH_NAMES[parseInt(m,10)-1]} ${y}`; })()}</h2>
             </div>
-            <div className="ds-section-title" style={{color:'var(--ink-muted)'}}>الحجوزات</div>
+            <div className="card" style={{margin:'14px 0'}}>
+              <div className="label">إجمالي هذا الشهر</div>
+              <div className="value">{fmtM(shownTotal)} اوقية</div>
+              <div className="sub">{shownCount} دفعات</div>
+            </div>
+            <button className="export-earnings-btn" onClick={()=>setEarningsExportScope(drilledMonth)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+              تصدير بيانات هذا الشهر PDF
+            </button>
+            <div className="ds-section-title" style={{color:'var(--ink-muted)'}}>الدفعات</div>
             <div className="agenda-list">
-              {monthBookings.length === 0 && <div className="empty-state">لا توجد حجوزات هذا الشهر</div>}
-              {monthBookings.map(b => {
-                const d = new Date(b.dk+'T12:00:00');
+              {monthPayments.length === 0 && <div className="empty-state">لا توجد دفعات هذا الشهر</div>}
+              {monthPayments.map((p,i) => {
+                const d = new Date(p.date+'T12:00:00');
                 return (
-                  <div className={`agenda-item ${b.status}`} key={b.dk} onClick={()=>setSelectedDay(b.dk)}>
+                  <div className="agenda-item booked" key={p.id||i} onClick={()=>setSelectedDay(p.bookingDateKey)}>
                     <div className="agenda-date">
                       <div className="num">{d.getDate()}</div>
                       <div className="mon">{MONTH_NAMES[d.getMonth()]}</div>
                     </div>
                     <div className="agenda-info">
-                      <div className="name">{b.clientName}</div>
-                      <div className="meta"><span className="ltr-nums">{formatPhone(b.phone)}</span> · {b.paid.toLocaleString('en-US')} / {b.total.toLocaleString('en-US')} اوقية</div>
+                      <div className="name">{p.clientName}</div>
+                      <div className="meta">{p.method || 'نقدا'} · {p.amount.toLocaleString('en-US')} اوقية</div>
                     </div>
-                    <div className="agenda-status">{b.status==='pending'?'متبقي مبلغ':'محجوز'}</div>
                   </div>
                 );
               })}
@@ -1650,27 +1686,14 @@ function MainApp({ uid, userDoc }){
   const [monthlyExportScope, setMonthlyExportScope] = useState(null); // null | 'all' | 'YYYY-MM'
   const [dailyExportDay, setDailyExportDay] = useState(null); // null | dateKey
   const [receiptView, setReceiptView] = useState(null); // null | {dateKey, paymentIndex}
+  const [earningsExportScope, setEarningsExportScope] = useState(null); // null | 'all' | 'YYYY-MM'
 
-  // Lock the background page from scrolling whenever any sheet/modal is open.
-  // Plain overflow:hidden isn't reliable on iPhone Safari — instead we freeze
-  // the body in place at its current scroll position, then restore it exactly
-  // when the modal closes, which works consistently across all devices.
-  useEffect(() => {
-    const anyModalOpen = !!(selectedDay || monthlyExportScope !== null || dailyExportDay || receiptView);
-    if(anyModalOpen){
-      const scrollY = window.scrollY;
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.width = '100%';
-      document.body.dataset.scrollY = String(scrollY);
-    } else if(document.body.style.position === 'fixed'){
-      const scrollY = parseInt(document.body.dataset.scrollY || '0', 10);
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.width = '';
-      window.scrollTo(0, scrollY);
-    }
-  }, [selectedDay, monthlyExportScope, dailyExportDay, receiptView]);
+  // Each overlay (.overlay/.sheet and .print-overlay) already covers the full
+  // screen with position:fixed and its own internal scroll, so the page behind
+  // it is never visible or reachable — no extra body-freezing needed. An earlier
+  // version froze the body's own position here, which caused real problems on
+  // some Android browsers (broken single-finger scrolling, overlays failing to
+  // paint their content). Removed for that reason.
 
   const WEEKDAY_NAMES = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 
@@ -1695,9 +1718,10 @@ function MainApp({ uid, userDoc }){
         <div className="doc">
           <div className="doc-header">
             <div className="brand">
-              <div className="mark">ق</div>
-              <div><h1>{hallName}</h1><div className="sub">لتنظيم الأفراح والمناسبات</div></div>
+              <div className="mark">{badgeLetter}</div>
+              <div><h1>{hallName}</h1><div className="sub">{tagline}</div></div>
             </div>
+            <div className="meta">{hallPhone}<br/>{hallAddress}</div>
           </div>
           <div className="doc-title"><h2>{title}</h2><p>للمشاركة مع حارس القاعة</p></div>
           <table>
@@ -1705,17 +1729,78 @@ function MainApp({ uid, userDoc }){
             <tbody>
               {entries.map(b => {
                 const d = new Date(b.dk+'T12:00:00');
+                const paid = (b.payments||[]).reduce((a,p)=>a+p.amount,0);
+                const status = paid < b.total ? 'pending' : 'booked';
                 return (
                   <tr key={b.dk}>
                     <td>{d.getDate()} {MONTH_NAMES[d.getMonth()]}</td>
                     <td>{b.clientName}</td>
                     <td className="ltr-nums">{formatPhone(b.phone)}</td>
-                    <td>محجوز</td>
+                    <td><span className={`status-pill ${status}`}>{status==='pending'?'متبقي مبلغ':'محجوز'}</span></td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+          <div className="doc-footer">
+            <span>تم الإصدار بتاريخ {new Date().toLocaleDateString('en-GB')}</span>
+            <span>قاعتي</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const EarningsExportModal = ({ scope, onClose }) => {
+    const allPays = [];
+    Object.entries(bookings).forEach(([dk, b]) => {
+      (b.payments||[]).forEach(p => allPays.push({ ...p, clientName: b.clientName }));
+    });
+    const filtered = allPays
+      .filter(p => scope === 'all' || (p.date||'').slice(0,7) === scope)
+      .sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+    const grandTotal = filtered.reduce((s,p)=>s+p.amount, 0);
+    const title = scope === 'all'
+      ? 'تقرير الأرباح — كل الأشهر'
+      : (() => { const [y,m]=scope.split('-'); return `تقرير الأرباح — ${MONTH_NAMES[parseInt(m,10)-1]} ${y}`; })();
+
+    return (
+      <div className="print-overlay open">
+        <div className="print-topbar">
+          <button onClick={onClose} aria-label="إغلاق">✕</button>
+          <button className="print-btn" onClick={()=>window.print()}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+            طباعة / حفظ PDF
+          </button>
+        </div>
+        <div className="doc">
+          <div className="doc-header">
+            <div className="brand">
+              <div className="mark">{badgeLetter}</div>
+              <div><h1>{hallName}</h1><div className="sub">{tagline}</div></div>
+            </div>
+            <div className="meta">{hallPhone}<br/>{hallAddress}</div>
+          </div>
+          <div className="doc-title"><h2>{title}</h2><p>{scope==='all'?'من بداية النشاط إلى اليوم':'هذا الشهر فقط'}</p></div>
+          <table>
+            <thead><tr><th>التاريخ</th><th>الزبون</th><th>المبلغ المدفوع</th><th>طريقة الدفع</th></tr></thead>
+            <tbody>
+              {filtered.map((p,i) => {
+                const d = new Date(p.date+'T12:00:00');
+                return (
+                  <tr key={p.id||i}>
+                    <td>{d.getDate()} {MONTH_NAMES[d.getMonth()]}</td>
+                    <td>{p.clientName}</td>
+                    <td>{p.amount.toLocaleString('en-US')} اوقية</td>
+                    <td>{p.method || 'نقدا'}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div style={{display:'flex', justifyContent:'space-between', padding:'14px 8px', marginTop:6, borderTop:'2px solid #E3E1F2', fontWeight:800}}>
+            <span>{scope==='all'?'المجموع الكلي':'مجموع الشهر'}</span><span>{grandTotal.toLocaleString('en-US')} اوقية</span>
+          </div>
           <div className="doc-footer">
             <span>تم الإصدار بتاريخ {new Date().toLocaleDateString('en-GB')}</span>
             <span>قاعتي</span>
@@ -1741,9 +1826,10 @@ function MainApp({ uid, userDoc }){
         <div className="doc">
           <div className="doc-header">
             <div className="brand">
-              <div className="mark">ق</div>
-              <div><h1>{hallName}</h1><div className="sub">لتنظيم الأفراح والمناسبات</div></div>
+              <div className="mark">{badgeLetter}</div>
+              <div><h1>{hallName}</h1><div className="sub">{tagline}</div></div>
             </div>
+            <div className="meta">{hallPhone}<br/>{hallAddress}</div>
           </div>
           <div className="slip">
             <div className="authorize">تصريح دخول لليوم</div>
@@ -1751,8 +1837,7 @@ function MainApp({ uid, userDoc }){
             <div className="weekday">{WEEKDAY_NAMES[d.getDay()]}</div>
             <div className="slip-row"><span>الزبون</span><span>{dayData.clientName}</span></div>
             <div className="slip-row"><span>الهاتف</span><span className="ltr-nums">{formatPhone(dayData.phone)}</span></div>
-            <div className="slip-row"><span>المبلغ الإجمالي</span><span>{dayData.total.toLocaleString('en-US')} اوقية</span></div>
-            <div className={`badge-big ${status}`}>محجوز</div>
+            <div className={`badge-big ${status}`}>{status==='pending'?'متبقي مبلغ':'محجوز'}</div>
             <div className="note">يرجى إبراز هذا التصريح لحارس القاعة عند الوصول يوم المناسبة.</div>
           </div>
         </div>
@@ -1779,9 +1864,10 @@ function MainApp({ uid, userDoc }){
         <div className="doc">
           <div className="doc-header">
             <div className="brand">
-              <div className="mark">ق</div>
-              <div><h1>{hallName}</h1><div className="sub">لتنظيم الأفراح والمناسبات</div></div>
+              <div className="mark">{badgeLetter}</div>
+              <div><h1>{hallName}</h1><div className="sub">{tagline}</div></div>
             </div>
+            <div className="meta">{hallPhone}<br/>{hallAddress}</div>
           </div>
           <div className="doc-title"><h2>إيصال دفع</h2><p>{p.date}</p></div>
           <div>
@@ -1803,36 +1889,85 @@ function MainApp({ uid, userDoc }){
   };
 
   const SettingsPage = () => {
-    const [editing, setEditing] = useState(false);
-    const [temp, setTemp] = useState(hallName);
+    const [editField, setEditField] = useState(null); // which field is currently being edited
+    const [temp, setTemp] = useState('');
     const [resetMsg, setResetMsg] = useState(null); // {type:'ok'|'error', text}
-    const saveName = async () => {
-      setHallName(temp);
-      await db.collection('users').doc(uid).update({ hallName: temp });
-      setEditing(false);
+
+    const startEdit = (field, currentValue) => { setTemp(currentValue); setEditField(field); };
+    const saveField = async (field, setter) => {
+      setter(temp);
+      await db.collection('users').doc(uid).update({ [field]: temp });
+      setEditField(null);
     };
+
+    const FieldRow = ({ label, field, value, setter, ltr }) => (
+      <div>
+        <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:5}}>{label}</label>
+        {editField === field ? (
+          <div style={{display:'flex', gap:8}}>
+            <div className="field" style={{flex:1, marginBottom:0}}>
+              <input value={temp} onChange={e=>setTemp(e.target.value)} style={ltr?{direction:'ltr', textAlign:'left'}:{}}/>
+            </div>
+            <button className="btn-save-light" onClick={()=>saveField(field, setter)}>حفظ</button>
+          </div>
+        ) : (
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+            <span className={ltr?'ltr-nums':''} style={{fontWeight:700}}>{value}</span>
+            <button className="btn-edit-light" onClick={()=>startEdit(field, value)}>تعديل</button>
+          </div>
+        )}
+      </div>
+    );
+
     return (
       <div className="page active">
         <div className="settings-group">
-          <h4>القاعة</h4>
-          <div className="settings-card" style={{padding:16}}>
-            {editing ? (
-              <div style={{display:'flex', gap:8}}>
-                <input value={temp} onChange={e=>setTemp(e.target.value)} style={{flex:1}}/>
-                <button className="btn-primary" onClick={saveName}>حفظ</button>
+          <h4>معلومات القاعة</h4>
+          <div className="settings-card" style={{padding:16, display:'flex', flexDirection:'column', gap:14}}>
+
+            <div style={{display:'flex', alignItems:'center', gap:12, paddingBottom:14, borderBottom:'1px solid rgba(255,255,255,.4)'}}>
+              <div className="avatar-ring" style={{width:52, height:52, margin:0, fontSize:'1.3rem'}}>{badgeLetter}</div>
+              <div style={{flex:1}}>
+                <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:5}}>الحرف الظاهر في الشعار</label>
+                {editField === 'badgeLetter' ? (
+                  <div style={{display:'flex', gap:8}}>
+                    <div className="field" style={{marginBottom:0}}>
+                      <input value={temp} maxLength={1} onChange={e=>setTemp(e.target.value)} style={{width:60, textAlign:'center'}}/>
+                    </div>
+                    <button className="btn-save-light" onClick={()=>saveField('badgeLetter', setBadgeLetter)}>حفظ</button>
+                  </div>
+                ) : (
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                    <span style={{fontWeight:800}}>{badgeLetter}</span>
+                    <button className="btn-edit-light" onClick={()=>startEdit('badgeLetter', badgeLetter)}>تعديل</button>
+                  </div>
+                )}
               </div>
-            ) : (
-              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                <span style={{fontWeight:800}}>{hallName}</span>
-                <button className="btn-secondary" onClick={()=>{setTemp(hallName);setEditing(true);}}>تعديل</button>
-              </div>
-            )}
+            </div>
+
+            <FieldRow label="اسم القاعة" field="hallName" value={hallName} setter={setHallName}/>
+            <FieldRow label="رقم الهاتف" field="hallPhone" value={hallPhone} setter={setHallPhone} ltr/>
+            <FieldRow label="العنوان" field="hallAddress" value={hallAddress} setter={setHallAddress}/>
+            <FieldRow label="الوصف (يظهر تحت اسم القاعة)" field="tagline" value={tagline} setter={setTagline}/>
           </div>
         </div>
+
+        <div className="settings-group">
+          <h4>التفضيلات</h4>
+          <div className="settings-card" style={{padding:16}}>
+            <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:8}}>اللغة</label>
+            <div className="lang-pills">
+              <button className={lang==='en'?'active':''} onClick={()=>onLangChange('en')}>En</button>
+              <button className={lang==='fr'?'active':''} onClick={()=>onLangChange('fr')}>Fr</button>
+              <button className={lang==='ar'?'active':''} onClick={()=>onLangChange('ar')}>ع</button>
+            </div>
+          </div>
+        </div>
+
         <div className="settings-group">
           <h4>كلمة المرور</h4>
           <div className="settings-card" style={{padding:16}}>
-            <button className="btn-secondary" style={{width:'100%'}} onClick={async()=>{
+            <button className="btn-edit-light" style={{width:'100%', padding:'13px'}} onClick={async()=>{
               try{ await auth.sendPasswordResetEmail(auth.currentUser.email); setResetMsg({type:'ok', text:'تم إرسال بريد إعادة التعيين!'}); }
               catch(e){ setResetMsg({type:'error', text:'تعذّر الإرسال. حاول مجددًا.'}); }
               setTimeout(()=>setResetMsg(null), 3500);
@@ -1847,7 +1982,7 @@ function MainApp({ uid, userDoc }){
           <div className="settings-card" style={{padding:16, marginBottom:10}}>
             <div style={{fontSize:'.85rem', color:'var(--ink-muted)'}}>{auth.currentUser?.email}</div>
           </div>
-          <button className="btn-secondary" style={{width:'100%', color:'var(--coral)'}} onClick={()=>auth.signOut()}>تسجيل الخروج</button>
+          <button className="btn-edit-light" style={{width:'100%', padding:'13px', color:'var(--coral)', background:'rgba(232,89,143,0.12)'}} onClick={()=>auth.signOut()}>تسجيل الخروج</button>
         </div>
       </div>
     );
@@ -1864,9 +1999,9 @@ function MainApp({ uid, userDoc }){
       <div className="bubble b1"></div><div className="bubble b2"></div><div className="bubble b3"></div><div className="bubble b4"></div>
 
       <header className="hero">
-        <div className="avatar-ring">{hallName.trim().charAt(0)}</div>
+        <div className="avatar-ring">{badgeLetter}</div>
         <h1>{hallName}</h1>
-        <p>لتنظيم الأفراح والمناسبات</p>
+        <p>{tagline}</p>
       </header>
 
       <main>
@@ -1909,6 +2044,9 @@ function MainApp({ uid, userDoc }){
       {monthlyExportScope !== null && (
         <MonthlyExportModal scope={monthlyExportScope} onClose={()=>setMonthlyExportScope(null)}/>
       )}
+      {earningsExportScope !== null && (
+        <EarningsExportModal scope={earningsExportScope} onClose={()=>setEarningsExportScope(null)}/>
+      )}
       {dailyExportDay && bookings[dailyExportDay] && (
         <DailyExportModal dateKey={dailyExportDay} dayData={bookings[dailyExportDay]} onClose={()=>setDailyExportDay(null)}/>
       )}
@@ -1946,6 +2084,19 @@ function App(){
   const [authUser, setAuthUser] = useState(undefined);
   const [userDoc, setUserDoc] = useState(null);
   const [whatsapp, setWhatsapp] = useState('+222 XX XX XX XX');
+  const [lang, setLang] = useState(() => localStorage.getItem('qaaty_lang') || 'ar');
+
+  // Remember whichever language was last chosen — closing the app and
+  // reopening it later should pick up right where the person left off,
+  // instead of resetting to Arabic every time.
+  const onLangChange = (l) => {
+    setLang(l);
+    localStorage.setItem('qaaty_lang', l);
+  };
+  useEffect(() => {
+    document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   useEffect(() => {
     db.collection('settings').doc('contact').get().then(snap => {
@@ -1969,12 +2120,14 @@ function App(){
     return unsub;
   }, []);
 
-  if(authUser === undefined){
-    return <div className="loading-screen"><div className="spinner"></div></div>;
-  }
-  if(!authUser) return <AuthScreen/>;
+  // No dedicated loading/spinner screen: Firebase's local session check is
+  // near-instant, and showing a full-screen spinner first made the app feel
+  // like it was "installing" rather than just opening. Going straight to the
+  // login form (or straight past it, if a session is already active) reads
+  // as instant instead.
+  if(authUser === undefined || !authUser) return <AuthScreen lang={lang} onLangChange={onLangChange}/>;
   if(!userDoc || !userDoc.active) return <PendingGate whatsapp={whatsapp}/>;
-  return <MainApp uid={authUser.uid} userDoc={userDoc}/>;
+  return <MainApp uid={authUser.uid} userDoc={userDoc} lang={lang} onLangChange={onLangChange}/>;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
