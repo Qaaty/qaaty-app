@@ -1197,9 +1197,13 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
   const handleTouchMove = (e) => {
     if(!dragging) return;
     const delta = e.touches[0].clientY - dragStartY.current;
-    if(delta > 0) setDragY(delta); // only allow dragging downward
+    if(delta > 0){
+      e.preventDefault(); // stop native scroll from also moving the page behind the sheet
+      setDragY(delta); // only allow dragging downward
+    }
   };
-  const handleTouchEnd = () => {
+  const handleTouchEnd = (e) => {
+    e.preventDefault();
     setDragging(false);
     if(dragY > 90){ onClose(); } // dragged down far enough — dismiss
     setDragY(0);
@@ -1218,7 +1222,7 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
         style={{ transform:`translateY(${dragY}px)`, transition: dragging ? 'none' : 'transform .25s ease' }}
       >
         <div
-          style={{ cursor:'grab' }}
+          style={{ cursor:'grab', touchAction:'none' }}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
