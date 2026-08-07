@@ -655,48 +655,9 @@
   }
 
 
-/* ===== Supplemental styles for the React-rendered app shell ===== */
 .loading-screen{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:linear-gradient(155deg, var(--mint-1) 0%, var(--mint-2) 45%, var(--teal-3) 100%); }
 .spinner{ width:40px; height:40px; border:3px solid rgba(255,255,255,.5); border-top-color:var(--teal-deep); border-radius:50%; animation:spin .8s linear infinite; }
 @keyframes spin{ to{ transform:rotate(360deg); } }
-
-.app-shell{ min-height:100vh; background:var(--bg, #F3F2FF); padding-bottom:90px; }
-.page{ padding:16px; max-width:480px; margin:0 auto; }
-
-.stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:14px 0; }
-.stat-card{ background:var(--glass); border:1px solid var(--glass-border); border-radius:16px; padding:14px; text-align:center; }
-.stat-card.highlight{ background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); border:none; }
-.stat-card.highlight span{ color:#fff; }
-.stat-card.highlight label{ color:rgba(255,255,255,.8); }
-.stat-card span{ display:block; font-size:1.3rem; font-weight:800; color:var(--ink); }
-.stat-card label{ display:block; font-size:.72rem; color:var(--ink-muted); margin-top:4px; }
-
-.cal-nav{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-weight:800; }
-.cal-nav button{ background:var(--glass); border:1px solid var(--glass-border); width:32px; height:32px; border-radius:50%; font-size:1.1rem; color:var(--teal-deep); }
-.cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
-.cal-dayname{ text-align:center; font-size:.68rem; font-weight:700; color:var(--ink-muted); padding-bottom:4px; }
-.cal-cell{ aspect-ratio:1/1; border-radius:10px; border:none; background:var(--glass); font-size:.8rem; font-weight:700; color:var(--ink); }
-.cal-cell.today{ border:1.5px solid var(--teal-deep); }
-.cal-cell.booked{ background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); color:#fff; }
-
-.bottom-nav{ position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--glass-border); display:flex; padding:8px 0 22px; z-index:20; }
-.bottom-nav button{ flex:1; background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:2px; font-size:1.1rem; color:var(--ink-muted); }
-.bottom-nav button span{ font-size:.62rem; font-weight:700; }
-.bottom-nav button.active{ color:var(--teal-deep); }
-
-.sheet-overlay{ position:fixed; inset:0; background:rgba(30,27,58,.4); display:flex; align-items:flex-end; z-index:50; }
-.sheet{ background:#fff; width:100%; border-radius:24px 24px 0 0; padding:14px 20px 30px; max-height:80vh; overflow-y:auto; }
-.sheet-handle{ width:40px; height:4px; background:#ddd; border-radius:2px; margin:0 auto 16px; }
-.sheet-title{ font-size:1.1rem; font-weight:800; color:var(--ink); margin-bottom:4px; }
-.sheet-sub{ font-size:.85rem; color:var(--ink-muted); margin-bottom:16px; }
-.ds-stats{ display:flex; justify-content:space-between; background:var(--bg,#F3F2FF); border-radius:14px; padding:14px; margin-bottom:16px; }
-.ds-stats > div{ text-align:center; flex:1; }
-.ds-stats span{ display:block; font-weight:800; color:var(--ink); }
-.ds-stats label{ display:block; font-size:.68rem; color:var(--ink-muted); margin-top:2px; }
-
-.btn-primary{ background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); color:#fff; border:none; border-radius:14px; padding:13px; font-weight:800; font-family:'Tajawal',sans-serif; }
-.btn-danger{ background:var(--coral); color:#fff; border:none; border-radius:14px; padding:13px; font-weight:800; font-family:'Tajawal',sans-serif; }
-.btn-danger-outline{ background:var(--coral-soft); color:var(--coral); border:none; border-radius:14px; padding:13px; font-weight:800; font-family:'Tajawal',sans-serif; }
 
 </style>
 </head>
@@ -1019,72 +980,125 @@ function AuthScreen(){
 }
 
 
-// ── DAY SHEET (bottom sheet for a single calendar day) ──────────────────
-function DaySheet({ dateKey, dayData, onClose, onAddBooking, onRecordPayment, onCancel, hallName }){
-  const [screen, setScreen] = useState(dayData ? 'view' : 'add');
+// ── DAY SHEET (matches original .overlay/.sheet/.badge/.deposit-bar design exactly) ──
+function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecordPayment, onCancel }){
+  const [screen, setScreen] = useState(dayData ? 'view' : 'empty');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [total, setTotal] = useState('');
   const [paidNow, setPaidNow] = useState('');
   const [payAmount, setPayAmount] = useState('');
+  const [payMethod, setPayMethod] = useState('نقدا');
   const [confirmCancel, setConfirmCancel] = useState(false);
 
   const paid = dayData ? (dayData.payments||[]).reduce((a,p)=>a+p.amount,0) : 0;
   const remaining = dayData ? dayData.total - paid : 0;
+  const pct = dayData ? Math.round((paid / dayData.total) * 100) : 0;
+  const status = remaining > 0 ? 'pending' : 'booked';
+  const sortedPayments = dayData ? [...(dayData.payments||[])].sort((a,c)=>a.date.localeCompare(c.date)) : [];
 
   return (
-    <div className="sheet-overlay" onClick={onClose}>
-      <div className="sheet" onClick={e=>e.stopPropagation()}>
+    <div className="overlay open">
+      <div className="sheet">
         <div className="sheet-handle"></div>
+        <div className="sheet-head">
+          <h3>{dayData ? dayData.clientName : dateLabel}</h3>
+          <button className="sheet-close" onClick={onClose}>✕</button>
+        </div>
+
+        {screen === 'empty' && !dayData && (
+          <>
+            <span className="badge free">متاح</span>
+            <p style={{fontSize:'.85rem', color:'var(--ink-muted)', lineHeight:1.8, marginBottom:18}}>لا يوجد حجز في هذا التاريخ حاليًا.</p>
+            <button className="btn-primary" style={{width:'100%'}} onClick={()=>setScreen('add')}>+ إضافة حجز لهذا التاريخ</button>
+          </>
+        )}
+
+        {screen === 'add' && !dayData && (
+          <form onSubmit={e=>{
+            e.preventDefault();
+            if(!name.trim() || !phone.trim() || !total) return;
+            onAddBooking(dateKey, { clientName:name.trim(), phone:phone.trim(), total:Number(total), paidNow:Number(paidNow)||0 });
+            onClose();
+          }}>
+            <div className="field"><label>اسم الزبون</label><input value={name} onChange={e=>setName(e.target.value)} required/></div>
+            <div className="field"><label>رقم الهاتف</label><input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} required/></div>
+            <div className="field"><label>المبلغ الإجمالي (اوقية)</label><input type="number" value={total} onChange={e=>setTotal(e.target.value)} required/></div>
+            <div className="field"><label>المبلغ المدفوع الآن (اوقية)</label><input type="number" value={paidNow} onChange={e=>setPaidNow(e.target.value)}/></div>
+            <div className="sheet-actions">
+              <button type="button" className="btn-secondary" onClick={()=>setScreen('empty')}>إلغاء</button>
+              <button type="submit" className="btn-primary">حفظ الحجز</button>
+            </div>
+          </form>
+        )}
+
         {screen === 'view' && dayData && (
           <>
-            <div className="sheet-title">{dayData.clientName}</div>
-            <div className="sheet-sub">📞 {formatPhone(dayData.phone)}</div>
-            <div className="ds-stats">
-              <div><span>{fmtM(dayData.total)}</span><label>الإجمالي</label></div>
-              <div><span>{fmtM(paid)}</span><label>مدفوع</label></div>
-              <div><span>{fmtM(remaining)}</span><label>متبقي</label></div>
+            <div className="ds-date">{dateLabel}</div>
+            <span className={`badge ${status}`}>{status==='pending'?'متبقي مبلغ':'محجوز'}</span>
+            <div className="info-row"><span>الهاتف</span><span>{formatPhone(dayData.phone)}</span></div>
+            <div className="info-row"><span>المبلغ الإجمالي</span><span>{dayData.total.toLocaleString('en-US')} اوقية</span></div>
+            <div className="info-row"><span>المدفوع</span><span>{paid.toLocaleString('en-US')} اوقية</span></div>
+            <div className="deposit-bar"><div className="deposit-fill" style={{width:pct+'%'}}></div></div>
+            <div className="deposit-caption"><span>{pct}% مدفوع</span><span>{remaining.toLocaleString('en-US')} اوقية متبقي</span></div>
+
+            <div className="ds-section-title">سجل الدفعات</div>
+            <div className="payment-history">
+              {sortedPayments.length === 0 && <div style={{fontSize:'.8rem', color:'var(--ink-muted)'}}>لا توجد دفعات بعد</div>}
+              {sortedPayments.map((p,i) => (
+                <div className="payment-row" key={p.id||i}>
+                  <span className="p-date">{p.date} · {p.method || 'نقدا'}</span>
+                  <span className="p-amount">{p.amount.toLocaleString('en-US')} اوقية</span>
+                </div>
+              ))}
             </div>
-            {remaining > 0 && (
-              <button className="btn-primary" style={{width:'100%', marginBottom:10}} onClick={()=>setScreen('pay')}>+ تسجيل دفعة</button>
-            )}
+
+            {remaining > 0 && <button className="btn-primary" style={{width:'100%', marginTop:16}} onClick={()=>setScreen('pay')}>+ تسجيل دفعة</button>}
+
             {!confirmCancel ? (
-              <button className="btn-danger-outline" style={{width:'100%'}} onClick={()=>setConfirmCancel(true)}>إلغاء الحجز</button>
+              <button className="btn-secondary" style={{width:'100%', marginTop:10}} onClick={()=>setConfirmCancel(true)}>إلغاء الحجز</button>
             ) : (
-              <div style={{display:'flex', gap:8}}>
-                <button className="btn-secondary" style={{flex:1}} onClick={()=>setConfirmCancel(false)}>تراجع</button>
-                <button className="btn-danger" style={{flex:1}} onClick={()=>{onCancel(dateKey); onClose();}}>تأكيد الإلغاء</button>
+              <div className="sheet-actions" style={{marginTop:10}}>
+                <button className="btn-secondary" onClick={()=>setConfirmCancel(false)}>تراجع</button>
+                <button className="btn-primary" style={{background:'var(--coral)'}} onClick={()=>{onCancel(dateKey); onClose();}}>تأكيد الإلغاء</button>
               </div>
             )}
           </>
         )}
+
         {screen === 'pay' && dayData && (
           <>
-            <div className="sheet-title">تسجيل دفعة</div>
-            <div className="field">
-              <label>المبلغ (متبقي {fmtM(remaining)})</label>
-              <input type="number" value={payAmount} onChange={e=>setPayAmount(e.target.value)} placeholder="0"/>
+            <div className="remaining-box">
+              <div className="r-label">المبلغ المتبقي</div>
+              <div className="r-value">{remaining.toLocaleString('en-US')} اوقية</div>
             </div>
-            <button className="btn-primary" style={{width:'100%'}} onClick={()=>{
+            <form onSubmit={e=>{
+              e.preventDefault();
               const amt = Number(payAmount);
               if(!amt || amt <= 0 || amt > remaining) return;
-              onRecordPayment(dateKey, amt);
+              onRecordPayment(dateKey, amt, payMethod);
               onClose();
-            }}>تأكيد الدفع</button>
-          </>
-        )}
-        {screen === 'add' && !dayData && (
-          <>
-            <div className="sheet-title">إضافة حجز</div>
-            <div className="field"><label>اسم الزبون</label><input value={name} onChange={e=>setName(e.target.value)} /></div>
-            <div className="field"><label>رقم الهاتف</label><input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} /></div>
-            <div className="field"><label>المبلغ الإجمالي</label><input type="number" value={total} onChange={e=>setTotal(e.target.value)} /></div>
-            <div className="field"><label>المدفوع الآن</label><input type="number" value={paidNow} onChange={e=>setPaidNow(e.target.value)} /></div>
-            <button className="btn-primary" style={{width:'100%'}} onClick={()=>{
-              if(!name.trim() || !phone.trim() || !total) return;
-              onAddBooking(dateKey, { clientName:name.trim(), phone:phone.trim(), total:Number(total), paidNow:Number(paidNow)||0 });
-              onClose();
-            }}>حفظ الحجز</button>
+            }}>
+              <div className="field">
+                <label>المبلغ المدفوع الآن (اوقية)</label>
+                <input type="number" value={payAmount} onChange={e=>setPayAmount(e.target.value)} min="1" required/>
+                <button type="button" className="btn-pay-full" onClick={()=>setPayAmount(String(remaining))}>تسديد كامل المبلغ المتبقي</button>
+              </div>
+              <div className="field">
+                <label>طريقة الدفع</label>
+                <select value={payMethod} onChange={e=>setPayMethod(e.target.value)}>
+                  <option value="نقدا">نقدا</option>
+                  <option value="Bankily">Bankily</option>
+                  <option value="Masrvi">Masrvi</option>
+                  <option value="Sedad">Sedad</option>
+                  <option value="أخرى">أخرى</option>
+                </select>
+              </div>
+              <div className="sheet-actions">
+                <button type="button" className="btn-secondary" onClick={()=>setScreen('view')}>إلغاء</button>
+                <button type="submit" className="btn-primary">تأكيد الدفعة</button>
+              </div>
+            </form>
           </>
         )}
       </div>
@@ -1092,14 +1106,16 @@ function DaySheet({ dateKey, dayData, onClose, onAddBooking, onRecordPayment, on
   );
 }
 
-// ── MAIN APP (after login, once account is active) ──────────────────────
+// ── MAIN APP (after login, once account is active) — matches original header/cards/calendar exactly ──
 function MainApp({ uid, userDoc }){
-  const [tab, setTab] = useState('home');
+  const [page, setPage] = useState('home');
   const [bookings, setBookings] = useState({});
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
   const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
   const [selectedDay, setSelectedDay] = useState(null);
   const [hallName, setHallName] = useState(userDoc.hallName || 'قاعتي');
+
+  useEffect(() => { setHallName(userDoc.hallName || 'قاعتي'); }, [userDoc.hallName]);
 
   useEffect(() => {
     const unsub = db.collection('bookings').doc(uid).onSnapshot(snap => {
@@ -1120,10 +1136,10 @@ function MainApp({ uid, userDoc }){
     }};
     saveBookings(nb);
   };
-  const recordPayment = (dateKey, amount) => {
+  const recordPayment = (dateKey, amount, method) => {
     const day = bookings[dateKey];
     if(!day) return;
-    const nb = { ...bookings, [dateKey]: { ...day, payments: [...(day.payments||[]), { id:'p'+Date.now(), amount, date: toKey(new Date()) }] } };
+    const nb = { ...bookings, [dateKey]: { ...day, payments: [...(day.payments||[]), { id:'p'+Date.now(), amount, date: toKey(new Date()), method }] } };
     saveBookings(nb);
   };
   const cancelBooking = (dateKey) => {
@@ -1132,64 +1148,244 @@ function MainApp({ uid, userDoc }){
     saveBookings(nb);
   };
 
-  const monthRevenue = useMemo(() => {
-    let sum = 0;
-    Object.entries(bookings).forEach(([dk, day]) => {
-      const d = new Date(dk+'T12:00:00');
-      if(d.getFullYear()===currentYear && d.getMonth()===currentMonth){
-        sum += (day.payments||[]).reduce((a,p)=>a+p.amount, 0);
-      }
-    });
-    return sum;
-  }, [bookings, currentMonth, currentYear]);
-
-  const monthBookingsCount = useMemo(() => {
-    return Object.keys(bookings).filter(dk => {
+  const monthEntries = useMemo(() => {
+    return Object.entries(bookings).filter(([dk]) => {
       const d = new Date(dk+'T12:00:00');
       return d.getFullYear()===currentYear && d.getMonth()===currentMonth;
-    }).length;
+    });
   }, [bookings, currentMonth, currentYear]);
+
+  const monthRevenue = monthEntries.reduce((sum,[,b]) => sum + (b.payments||[]).reduce((a,p)=>a+p.amount,0), 0);
+  const notFullyPaid = monthEntries.filter(([,b]) => {
+    const paid = (b.payments||[]).reduce((a,p)=>a+p.amount,0);
+    return paid < b.total;
+  }).length;
 
   const grid = getMonthGrid(currentYear, currentMonth);
   const todayKey = toKey(new Date());
-
   const prevMonth = () => { if(currentMonth===0){setCurrentMonth(11);setCurrentYear(y=>y-1);} else setCurrentMonth(m=>m-1); };
   const nextMonth = () => { if(currentMonth===11){setCurrentMonth(0);setCurrentYear(y=>y+1);} else setCurrentMonth(m=>m+1); };
 
-  const HomeTab = () => (
-    <div className="page">
-      <header className="hero">
-        <div className="avatar-ring">{hallName.trim().charAt(0)}</div>
-        <h1>{hallName}</h1>
-        <p>لتنظيم الأفراح والمناسبات</p>
-      </header>
-      <div className="stat-grid">
-        <div className="stat-card highlight"><span>{fmtM(monthRevenue)}</span><label>المداخيل هذا الشهر</label></div>
-        <div className="stat-card"><span>{monthBookingsCount}</span><label>حجوزات هذا الشهر</label></div>
+  const dayClass = (dk) => {
+    const b = bookings[dk];
+    if(!b) return '';
+    const paid = (b.payments||[]).reduce((a,p)=>a+p.amount,0);
+    return paid < b.total ? 'pending' : 'booked';
+  };
+
+  const HomePage = () => (
+    <div className="page active" id="page-home">
+      <div className="cards" style={{gridTemplateColumns:'1fr 1fr'}}>
+        <div className="card">
+          <div className="label">المداخيل هذا الشهر</div>
+          <div className="value">{fmtM(monthRevenue)} اوقية</div>
+          <div className="sub">من {monthEntries.length} حجوزات</div>
+        </div>
+        <div className="card">
+          <div className="label">حجوزات هذا الشهر</div>
+          <div className="value">{monthEntries.length}</div>
+          <div className="sub">{notFullyPaid} غير مكتملة الدفع</div>
+        </div>
       </div>
-      <div className="cal-nav">
-        <button onClick={prevMonth}>‹</button>
-        <span>{MONTH_NAMES[currentMonth]} {currentYear}</span>
-        <button onClick={nextMonth}>›</button>
-      </div>
-      <div className="cal-grid">
-        {DAY_NAMES.map((d,i) => <div className="cal-dayname" key={i}>{d}</div>)}
-        {grid.map((d, i) => {
-          if(!d) return <div key={i}></div>;
-          const dk = toKey(d);
-          const booked = !!bookings[dk];
-          const isToday = dk === todayKey;
-          return (
-            <button key={i} className={`cal-cell ${booked?'booked':''} ${isToday?'today':''}`} onClick={()=>setSelectedDay(dk)}>
-              {d.getDate()}
-            </button>
-          );
-        })}
+
+      <div className="panel">
+        <div className="cal-head">
+          <h2>{MONTH_NAMES[currentMonth]} {currentYear}</h2>
+          <div className="cal-nav">
+            <button onClick={prevMonth} aria-label="الشهر السابق">‹</button>
+            <button onClick={nextMonth} aria-label="الشهر التالي">›</button>
+          </div>
+        </div>
+        <div className="weekdays">
+          <span>أحد</span><span>إثنين</span><span>ثلاثاء</span><span>أربعاء</span><span>خميس</span><span>جمعة</span><span>سبت</span>
+        </div>
+        <div className="days">
+          {grid.map((d, i) => {
+            if(!d) return <div className="day empty" key={i}></div>;
+            const dk = toKey(d);
+            const cls = ['day', dayClass(dk)];
+            if(dk === todayKey) cls.push('today');
+            return <div className={cls.join(' ').trim()} key={i} onClick={()=>setSelectedDay(dk)}>{d.getDate()}</div>;
+          })}
+        </div>
+        <div className="legend">
+          <span><i className="free"></i> متاح</span>
+          <span><i className="pending"></i> متبقي مبلغ</span>
+          <span><i className="booked"></i> محجوز</span>
+        </div>
+        <div className="hint-row">اضغط على أي تاريخ لعرض التفاصيل أو إضافة حجز جديد</div>
       </div>
     </div>
   );
 
-  const SettingsTab = () => {
+  const AgendaPage = () => {
+    const [search, setSearch] = useState('');
+    const [filter, setFilter] = useState('all');
+    const [monthFilter, setMonthFilter] = useState('all');
+
+    const monthKeys = useMemo(() => {
+      const keys = new Set(Object.keys(bookings).map(dk => dk.slice(0,7))); // "YYYY-MM"
+      return Array.from(keys).sort();
+    }, [bookings]);
+
+    const entries = useMemo(() => {
+      return Object.entries(bookings)
+        .filter(([dk]) => monthFilter === 'all' || dk.slice(0,7) === monthFilter)
+        .map(([dk, b]) => {
+          const paid = (b.payments||[]).reduce((a,p)=>a+p.amount,0);
+          const status = paid < b.total ? 'pending' : 'booked';
+          return { dk, ...b, paid, status };
+        })
+        .filter(b => filter === 'all' || b.status === filter)
+        .filter(b => !search.replace(/\s/g,'') || b.phone.replace(/\s/g,'').includes(search.replace(/\s/g,'')))
+        .sort((a,b) => a.dk.localeCompare(b.dk));
+    }, [bookings, filter, monthFilter, search]);
+
+    return (
+      <div className="page active">
+        <div className="search-row">
+          <div className="search-box">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+            <input type="tel" placeholder="ابحث برقم الهاتف" value={search} onChange={e=>setSearch(e.target.value)}/>
+          </div>
+          <select className="month-select" value={monthFilter} onChange={e=>setMonthFilter(e.target.value)}>
+            <option value="all">كل الأشهر</option>
+            {monthKeys.map(mk => {
+              const [y,m] = mk.split('-');
+              return <option key={mk} value={mk}>{MONTH_NAMES[parseInt(m,10)-1]} {y}</option>;
+            })}
+          </select>
+        </div>
+        <div className="filter-chips">
+          <button className={`chip ${filter==='all'?'active':''}`} onClick={()=>setFilter('all')}>الكل</button>
+          <button className={`chip ${filter==='booked'?'active':''}`} onClick={()=>setFilter('booked')}>محجوز</button>
+          <button className={`chip ${filter==='pending'?'active':''}`} onClick={()=>setFilter('pending')}>متبقي مبلغ</button>
+        </div>
+        <div style={{fontSize:'.78rem', color:'var(--ink-muted)', marginBottom:12}}>{entries.length} حجوزات</div>
+        <div className="agenda-list">
+          {entries.length === 0 && <div className="empty-state">لا توجد نتائج مطابقة</div>}
+          {entries.map(b => {
+            const d = new Date(b.dk+'T12:00:00');
+            return (
+              <div className={`agenda-item ${b.status}`} key={b.dk} onClick={()=>setSelectedDay(b.dk)}>
+                <div className="agenda-date">
+                  <div className="num">{d.getDate()}</div>
+                  <div className="mon">{MONTH_NAMES[d.getMonth()]}</div>
+                </div>
+                <div className="agenda-info">
+                  <div className="name">{b.clientName}</div>
+                  <div className="meta">{formatPhone(b.phone)}</div>
+                </div>
+                <div className="agenda-status">{b.status==='pending'?'متبقي مبلغ':'محجوز'}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const EarningsPage = () => {
+    const [drilledMonth, setDrilledMonth] = useState(null);
+
+    const statsForMonthKey = (mk) => {
+      const entries = Object.entries(bookings).filter(([dk]) => dk.slice(0,7) === mk).map(([,b])=>b);
+      const total = entries.reduce((s,b)=>s+(b.payments||[]).reduce((a,p)=>a+p.amount,0), 0);
+      const remaining = entries.reduce((s,b)=>{
+        const paid = (b.payments||[]).reduce((a,p)=>a+p.amount,0);
+        return s + Math.max(0, b.total - paid);
+      }, 0);
+      return { total, remaining, count: entries.length };
+    };
+    const allMonthKeys = useMemo(() => Array.from(new Set(Object.keys(bookings).map(dk=>dk.slice(0,7)))).sort(), [bookings]);
+    const statsAll = useMemo(() => allMonthKeys.reduce((acc,mk)=>{
+      const s = statsForMonthKey(mk);
+      acc.total+=s.total; acc.remaining+=s.remaining; acc.count+=s.count;
+      return acc;
+    }, {total:0,remaining:0,count:0}), [bookings, allMonthKeys]);
+
+    const shown = drilledMonth ? statsForMonthKey(drilledMonth) : statsAll;
+    const label = drilledMonth ? 'مداخيل الشهر' : 'إجمالي المداخيل';
+
+    const monthBookings = useMemo(() => {
+      if(!drilledMonth) return [];
+      return Object.entries(bookings)
+        .filter(([dk]) => dk.slice(0,7) === drilledMonth)
+        .map(([dk,b]) => {
+          const paid = (b.payments||[]).reduce((a,p)=>a+p.amount,0);
+          return { dk, ...b, paid, status: paid < b.total ? 'pending' : 'booked' };
+        })
+        .sort((a,b)=>a.dk.localeCompare(b.dk));
+    }, [bookings, drilledMonth]);
+
+    return (
+      <div className="page active">
+        <div className="cards" style={{gridTemplateColumns:'1fr 1fr', marginBottom:18}}>
+          <div className="card">
+            <div className="label">{label}</div>
+            <div className="value">{fmtM(shown.total)} اوقية</div>
+            <div className="sub">{shown.count} حجوزات</div>
+          </div>
+          <div className="card accent">
+            <div className="label">المتبقي من العروبين</div>
+            <div className="value">{fmtM(shown.remaining)} اوقية</div>
+            <div className="sub">عبر الحجوزات المعلقة</div>
+          </div>
+        </div>
+
+        {!drilledMonth ? (
+          <div className="agenda-list">
+            {allMonthKeys.length === 0 && <div className="empty-state">لا توجد بيانات بعد</div>}
+            {allMonthKeys.map(mk => {
+              const s = statsForMonthKey(mk);
+              const [y,m] = mk.split('-');
+              return (
+                <div className="month-card" key={mk} onClick={()=>setDrilledMonth(mk)}>
+                  <div>
+                    <div className="mc-name">{MONTH_NAMES[parseInt(m,10)-1]} {y}</div>
+                    <div className="mc-sub">{s.count} حجوزات</div>
+                  </div>
+                  <div style={{display:'flex', alignItems:'center', gap:10}}>
+                    <div className="mc-total">{fmtM(s.total)} اوقية</div>
+                    <span className="mc-arrow">‹</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <>
+            <div className="month-detail-head">
+              <button onClick={()=>setDrilledMonth(null)} aria-label="رجوع">‹</button>
+              <h2>{(() => { const [y,m]=drilledMonth.split('-'); return `${MONTH_NAMES[parseInt(m,10)-1]} ${y}`; })()}</h2>
+            </div>
+            <div className="ds-section-title" style={{color:'var(--ink-muted)'}}>الحجوزات</div>
+            <div className="agenda-list">
+              {monthBookings.length === 0 && <div className="empty-state">لا توجد حجوزات هذا الشهر</div>}
+              {monthBookings.map(b => {
+                const d = new Date(b.dk+'T12:00:00');
+                return (
+                  <div className={`agenda-item ${b.status}`} key={b.dk} onClick={()=>setSelectedDay(b.dk)}>
+                    <div className="agenda-date">
+                      <div className="num">{d.getDate()}</div>
+                      <div className="mon">{MONTH_NAMES[d.getMonth()]}</div>
+                    </div>
+                    <div className="agenda-info">
+                      <div className="name">{b.clientName}</div>
+                      <div className="meta">{formatPhone(b.phone)} · {b.paid.toLocaleString('en-US')} / {b.total.toLocaleString('en-US')} اوقية</div>
+                    </div>
+                    <div className="agenda-status">{b.status==='pending'?'متبقي مبلغ':'محجوز'}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  };
+
+  const SettingsPage = () => {
     const [editing, setEditing] = useState(false);
     const [temp, setTemp] = useState(hallName);
     const saveName = async () => {
@@ -1198,7 +1394,7 @@ function MainApp({ uid, userDoc }){
       setEditing(false);
     };
     return (
-      <div className="page">
+      <div className="page active">
         <div className="settings-group">
           <h4>القاعة</h4>
           <div className="settings-card" style={{padding:16}}>
@@ -1229,41 +1425,67 @@ function MainApp({ uid, userDoc }){
           <div className="settings-card" style={{padding:16, marginBottom:10}}>
             <div style={{fontSize:'.85rem', color:'var(--ink-muted)'}}>{auth.currentUser?.email}</div>
           </div>
-          <button className="btn-danger" style={{width:'100%'}} onClick={()=>auth.signOut()}>تسجيل الخروج</button>
+          <button className="btn-secondary" style={{width:'100%', color:'var(--coral)'}} onClick={()=>auth.signOut()}>تسجيل الخروج</button>
         </div>
       </div>
     );
   };
 
-  return (
-    <div className="app-shell">
-      {tab==='home' && <HomeTab/>}
-      {tab==='settings' && <SettingsTab/>}
-      {tab!=='home' && tab!=='settings' && (
-        <div className="page" style={{textAlign:'center', paddingTop:60, color:'var(--ink-muted)'}}>
-          قريبًا — هذا القسم قيد الإنشاء
-        </div>
-      )}
+  const dateLabelFor = (dk) => {
+    if(!dk) return '';
+    const d = new Date(dk+'T12:00:00');
+    return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+  };
 
-      <nav className="bottom-nav">
-        <button className={tab==='settings'?'active':''} onClick={()=>setTab('settings')}>⚙️<span>الإعدادات</span></button>
-        <button className={tab==='earnings'?'active':''} onClick={()=>setTab('earnings')}>💰<span>الأرباح</span></button>
-        <button className={tab==='agenda'?'active':''} onClick={()=>setTab('agenda')}>📅<span>الجدول</span></button>
-        <button className={tab==='home'?'active':''} onClick={()=>setTab('home')}>🏠<span>الرئيسية</span></button>
-      </nav>
+  return (
+    <>
+      <div className="bubble b1"></div><div className="bubble b2"></div><div className="bubble b3"></div><div className="bubble b4"></div>
+
+      <header className="hero">
+        <div className="avatar-ring">{hallName.trim().charAt(0)}</div>
+        <h1>{hallName}</h1>
+        <p>لتنظيم الأفراح والمناسبات</p>
+      </header>
+
+      <div className="owner-row">
+        <span>أهلاً بك 👋</span>
+        <a href="#" className="logout" onClick={e=>{e.preventDefault();auth.signOut();}}>تسجيل الخروج</a>
+      </div>
+
+      <main>
+        {page === 'home' && <HomePage/>}
+        {page === 'agenda' && <AgendaPage/>}
+        {page === 'earnings' && <EarningsPage/>}
+        {page === 'settings' && <SettingsPage/>}
+      </main>
+
+      <div className="bottom-nav">
+        <button className={page==='home'?'active':''} onClick={()=>setPage('home')} aria-label="الرئيسية">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>
+        </button>
+        <button className={page==='agenda'?'active':''} onClick={()=>setPage('agenda')} aria-label="الأجندة">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
+        </button>
+        <button className={page==='earnings'?'active':''} onClick={()=>setPage('earnings')} aria-label="المداخيل">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h3.2a1.8 1.8 0 010 3.6h-2a1.8 1.8 0 000 3.6h3.3"/></svg>
+        </button>
+        <button className={page==='settings'?'active':''} onClick={()=>setPage('settings')} aria-label="الإعدادات">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.55V21a2 2 0 11-4 0v-.09a1.7 1.7 0 00-1-1.55 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.7 1.7 0 00.34-1.87 1.7 1.7 0 00-1.55-1H3a2 2 0 110-4h.09a1.7 1.7 0 001.55-1 1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06a1.7 1.7 0 001.87.34H9a1.7 1.7 0 001-1.55V3a2 2 0 114 0v.09a1.7 1.7 0 001 1.55 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.34 1.87V9a1.7 1.7 0 001.55 1H21a2 2 0 110 4h-.09a1.7 1.7 0 00-1.55 1z"/></svg>
+        </button>
+      </div>
 
       {selectedDay && (
         <DaySheet
           dateKey={selectedDay}
+          dateLabel={dateLabelFor(selectedDay)}
           dayData={bookings[selectedDay]}
           onClose={()=>setSelectedDay(null)}
           onAddBooking={addBooking}
           onRecordPayment={recordPayment}
           onCancel={cancelBooking}
-          hallName={hallName}
         />
       )}
-    </div>
+    </>
   );
 }
 
@@ -1291,7 +1513,7 @@ function PendingGate({ whatsapp }){
 
 // ── ROOT APP: routes between Auth / Pending / MainApp based on Firebase state ─
 function App(){
-  const [authUser, setAuthUser] = useState(undefined); // undefined=loading, null=logged out
+  const [authUser, setAuthUser] = useState(undefined);
   const [userDoc, setUserDoc] = useState(null);
   const [whatsapp, setWhatsapp] = useState('+222 XX XX XX XX');
 
