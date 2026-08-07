@@ -9,7 +9,17 @@
 <link rel="shortcut icon" href="apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+<!-- PINNED VERSIONS — do not change to @latest -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.23.10/babel.min.js"></script>
+
 <style>
+
   :root{
     --mint-1:#DAE1FF;
     --mint-2:#A9B4F5;
@@ -267,620 +277,349 @@
   .confirm-cancel{ background:rgba(110,104,168,.12); color:var(--ink-muted); }
   .confirm-ok{ background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); color:#fff; }
   .confirm-ok.danger{ background:var(--coral); }
+
+
+.loading-screen{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:linear-gradient(155deg, var(--mint-1) 0%, var(--mint-2) 45%, var(--teal-3) 100%); }
+.spinner{ width:40px; height:40px; border:3px solid rgba(255,255,255,.5); border-top-color:var(--teal-deep); border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
 </style>
 </head>
 <body>
-
-<div class="bubble b1"></div>
-<div class="bubble b2"></div>
-<div class="bubble b3"></div>
-
-<!-- ---------- Admin login ---------- -->
-<div class="login-screen" id="loginScreen">
-  <div class="login-card">
-    <div class="login-avatar" style="background:none;">
-      <svg viewBox="0 0 512 512" width="40" height="40" style="display:block;">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#8791E8"/>
-      <stop offset="100%" stop-color="#4D48C4"/>
-    </linearGradient>
-    <radialGradient id="bulbGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#FFF6D8" stop-opacity="0.9"/>
-      <stop offset="40%" stop-color="#FFD34D" stop-opacity="0.5"/>
-      <stop offset="100%" stop-color="#FFD34D" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="diamondGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#C5F1FF"/>
-      <stop offset="45%" stop-color="#4FC3F7"/>
-      <stop offset="100%" stop-color="#1565C0"/>
-    </linearGradient>
-  </defs>
-  <rect x="0" y="0" width="512" height="512" rx="115" fill="url(#bg)"/>
-
-  <!-- gold string lights, hanging from the top only — not reaching the bottom -->
-  <g stroke="#E8B923" stroke-width="2.5" opacity="0.85">
-    <line x1="70"  y1="0" x2="70"  y2="300"/>
-    <line x1="150" y1="0" x2="150" y2="360"/>
-    <line x1="230" y1="0" x2="230" y2="260"/>
-    <line x1="310" y1="0" x2="310" y2="260"/>
-    <line x1="390" y1="0" x2="390" y2="360"/>
-    <line x1="460" y1="0" x2="460" y2="300"/>
-  </g>
-
-  <!-- bulbs: soft glow halo + bright core + tiny highlight, for a more realistic lit look -->
-  <g id="bulbs">
-    <!-- string 1 -->
-    <g><circle cx="70" cy="60"  r="20" fill="url(#bulbGlow)"/><circle cx="70" cy="60"  r="8" fill="#FFCA3A"/><circle cx="70" cy="57"  r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="70" cy="160" r="20" fill="url(#bulbGlow)"/><circle cx="70" cy="160" r="8" fill="#FFCA3A"/><circle cx="70" cy="157" r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="70" cy="260" r="20" fill="url(#bulbGlow)"/><circle cx="70" cy="260" r="8" fill="#FFCA3A"/><circle cx="70" cy="257" r="2.5" fill="#FFF9E6"/></g>
-    <!-- string 2 -->
-    <g><circle cx="150" cy="90"  r="20" fill="url(#bulbGlow)"/><circle cx="150" cy="90"  r="8" fill="#FFCA3A"/><circle cx="150" cy="87"  r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="150" cy="200" r="20" fill="url(#bulbGlow)"/><circle cx="150" cy="200" r="8" fill="#FFCA3A"/><circle cx="150" cy="197" r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="150" cy="320" r="20" fill="url(#bulbGlow)"/><circle cx="150" cy="320" r="8" fill="#FFCA3A"/><circle cx="150" cy="317" r="2.5" fill="#FFF9E6"/></g>
-    <!-- string 3 -->
-    <g><circle cx="230" cy="50"  r="20" fill="url(#bulbGlow)"/><circle cx="230" cy="50"  r="8" fill="#FFCA3A"/><circle cx="230" cy="47"  r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="230" cy="150" r="20" fill="url(#bulbGlow)"/><circle cx="230" cy="150" r="8" fill="#FFCA3A"/><circle cx="230" cy="147" r="2.5" fill="#FFF9E6"/></g>
-    <!-- string 4 -->
-    <g><circle cx="310" cy="50"  r="20" fill="url(#bulbGlow)"/><circle cx="310" cy="50"  r="8" fill="#FFCA3A"/><circle cx="310" cy="47"  r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="310" cy="150" r="20" fill="url(#bulbGlow)"/><circle cx="310" cy="150" r="8" fill="#FFCA3A"/><circle cx="310" cy="147" r="2.5" fill="#FFF9E6"/></g>
-    <!-- string 5 -->
-    <g><circle cx="390" cy="90"  r="20" fill="url(#bulbGlow)"/><circle cx="390" cy="90"  r="8" fill="#FFCA3A"/><circle cx="390" cy="87"  r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="390" cy="200" r="20" fill="url(#bulbGlow)"/><circle cx="390" cy="200" r="8" fill="#FFCA3A"/><circle cx="390" cy="197" r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="390" cy="320" r="20" fill="url(#bulbGlow)"/><circle cx="390" cy="320" r="8" fill="#FFCA3A"/><circle cx="390" cy="317" r="2.5" fill="#FFF9E6"/></g>
-    <!-- string 6 -->
-    <g><circle cx="460" cy="60"  r="20" fill="url(#bulbGlow)"/><circle cx="460" cy="60"  r="8" fill="#FFCA3A"/><circle cx="460" cy="57"  r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="460" cy="160" r="20" fill="url(#bulbGlow)"/><circle cx="460" cy="160" r="8" fill="#FFCA3A"/><circle cx="460" cy="157" r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="460" cy="260" r="20" fill="url(#bulbGlow)"/><circle cx="460" cy="260" r="8" fill="#FFCA3A"/><circle cx="460" cy="257" r="2.5" fill="#FFF9E6"/></g>
-  </g>
-
-  <!-- wedding arch / gateway -->
-  <path d="M170,404 L170,258 A86,86 0 0 1 342,258 L342,404 L314,404 L314,268 A58,58 0 0 0 198,268 L198,404 Z" fill="#FFFFFF"/>
-  <rect x="146" y="404" width="220" height="14" rx="7" fill="#FFFFFF"/>
-
-  <!-- red carpet with gold borders, leading out from the entrance all the way to the bottom edge -->
-  <path d="M180,418 L332,418 L382,512 L130,512 Z" fill="#C41E3A" stroke="#E8B923" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M191,420 L151,510" stroke="#E8B923" stroke-width="2.5" opacity="0.85"/>
-  <path d="M321,420 L361,510" stroke="#E8B923" stroke-width="2.5" opacity="0.85"/>
-
-  <!-- small gold engagement rings, replacing the old dot -->
-  <g fill="none" stroke="#E8B923" stroke-width="5">
-    <circle cx="245" cy="196" r="15"/>
-    <circle cx="267" cy="196" r="15"/>
-  </g>
-
-  <!-- small faceted blue diamond, mounted on top of the right ring -->
-  <path d="M267,171 L275,180 L267,189 L259,180 Z" fill="url(#diamondGrad)" stroke="#0D47A1" stroke-width="1"/>
-  <path d="M267,171 L267,189 M259,180 L275,180" stroke="#E3F7FF" stroke-width="1" opacity="0.7"/>
-  <path d="M262,175 L264,177 L262,179 L260,177 Z" fill="#FFFFFF" opacity="0.9"/>
-</svg>
-    </div>
-    <h1>لوحة تحكم المسؤول</h1>
-    <p>الوصول مقتصر على حساب المسؤول فقط</p>
-    <p style="background:var(--glass); border:1px dashed var(--glass-border); border-radius:12px; padding:10px 14px; font-size:.76rem; margin-bottom:20px;">
-      للمعاينة فقط: اكتب <strong>kerima@example.com</strong> وأي كلمة مرور
-    </p>
-
-    <form class="login-form" id="adminLoginForm">
-      <div class="login-error" id="loginError">هذا البريد الإلكتروني غير مصرح له بالدخول</div>
-      <div class="field">
-        <label>البريد الإلكتروني</label>
-        <input type="email" id="adminEmail" placeholder="example@email.com" required>
-      </div>
-      <div class="field">
-        <label>كلمة المرور</label>
-        <input type="password" id="adminPassword" placeholder="••••••••" required>
-      </div>
-      <button type="submit" class="login-submit">تسجيل الدخول</button>
-    </form>
-  </div>
-</div>
-
-<!-- ---------- Admin panel ---------- -->
-<div class="admin-panel" id="adminPanel">
-  <div class="admin-topbar">
-    <h2>لوحة تحكم المسؤول</h2>
-    <button id="adminLogout">تسجيل الخروج</button>
-  </div>
-  <div class="admin-body">
-    <div class="admin-tabs">
-      <button class="active" data-admin-tab="accounts">الحسابات</button>
-      <button data-admin-tab="payments">المدفوعات</button>
-      <button data-admin-tab="settings">الإعدادات</button>
-    </div>
-
-    <!-- ================= Accounts tab ================= -->
-    <div class="admin-tab-panel active" id="adminAccountsPanel">
-      <div class="stat-grid">
-        <div class="stat"><div class="s-label">الكل</div><div class="s-value" id="statTotal" style="color:var(--ink);">0</div></div>
-        <div class="stat"><div class="s-label">نشط</div><div class="s-value" id="statActive" style="color:#1E7A63;">0</div></div>
-        <div class="stat"><div class="s-label">قيد المراجعة</div><div class="s-value" id="statPending" style="color:var(--amber);">0</div></div>
-      </div>
-
-      <div class="search-row">
-        <div class="search-box">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-          <input type="text" id="accountSearch" placeholder="بحث بالاسم أو البريد الإلكتروني...">
-        </div>
-      </div>
-
-      <div id="adminAccountsList"></div>
-    </div>
-
-    <!-- ================= Payments tab ================= -->
-    <div class="admin-tab-panel" id="adminPaymentsPanel">
-      <div class="card autolock-card" id="autolockCard">
-        <div class="autolock-label" id="autolockLabel">🔒 القفل التلقائي</div>
-        <select id="autolockDay">
-          <option value="">لا شيء (معطل)</option>
-        </select>
-      </div>
-
-      <div class="card">
-        <div class="label">السعر الشهري / قاعة</div>
-        <div class="price-row" id="priceDisplayRow">
-          <div class="p-value"><span id="priceValue">1500</span> <span>اوقية/شهر</span></div>
-          <button class="edit-price-btn" id="editPriceBtn">✎ تعديل</button>
-        </div>
-        <div class="price-edit-row" id="priceEditRow" style="display:none;">
-          <input type="number" id="priceInput">
-          <button id="savePriceBtn" style="background:var(--teal-deep); color:#fff;">✓</button>
-          <button id="cancelPriceBtn" style="background:rgba(110,104,168,.12); color:var(--ink-muted);">✕</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <div class="label">الشهر</div>
-        <div class="month-nav">
-          <button id="prevPayMonth">‹</button>
-          <div class="m-label" id="payMonthLabel">أغسطس 2026</div>
-          <button id="nextPayMonth">›</button>
-        </div>
-      </div>
-
-      <div class="stat-grid">
-        <div class="stat"><div class="s-label">المستلم</div><div class="s-value" id="statReceived" style="color:#1E7A63;">0</div></div>
-        <div class="stat"><div class="s-label">المتبقي</div><div class="s-value" id="statMissing" style="color:var(--coral);">0</div></div>
-        <div class="stat"><div class="s-label">المتوقع</div><div class="s-value" id="statExpected" style="color:var(--ink-muted);">0</div></div>
-      </div>
-
-      <div class="card progress-card">
-        <div class="p-top">
-          <span id="paidCountLabel" style="color:#1E7A63;">0 مدفوع</span>
-          <span id="unpaidCountLabel" style="color:var(--coral);">0 غير مدفوع</span>
-        </div>
-        <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%;"></div></div>
-        <div class="progress-caption"><span id="progressPct">0</span>% تم تحصيله هذا الشهر</div>
-      </div>
-
-      <div class="search-row">
-        <div class="search-box">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-          <input type="text" id="paymentSearch" placeholder="بحث...">
-        </div>
-        <button class="icon-btn" id="toggleSelectMode">☑</button>
-      </div>
-
-      <div class="bulk-row" id="bulkRow" style="display:none;">
-        <button class="bulk-select-all" id="selectAllUnpaid">تحديد الكل</button>
-        <button class="bulk-mark-paid" id="markSelectedPaid">تحديد كمدفوع</button>
-      </div>
-
-      <div id="adminPaymentsList"></div>
-    </div>
-
-    <!-- ================= Settings tab ================= -->
-    <div class="admin-tab-panel" id="adminSettingsPanel">
-      <div class="card">
-        <div class="label">رقم واتساب للتواصل</div>
-        <div class="field" style="margin-bottom:10px;">
-          <input type="tel" id="contactWhatsapp" placeholder="+222 XX XX XX XX">
-        </div>
-        <button class="login-submit" id="saveContactBtn" style="margin-top:0;">حفظ</button>
-        <div id="saveContactMsg" style="display:none; text-align:center; margin-top:10px; font-size:.8rem; font-weight:700; color:#1E7A63;">✓ تم الحفظ</div>
-      </div>
-
-      <div class="card" style="background:rgba(30,122,99,.08); border-color:rgba(30,122,99,.3);">
-        <div class="label">معاينة</div>
-        <div style="font-size:.8rem; color:var(--ink-muted); line-height:1.8;">
-          هذا الرقم يظهر لأصحاب القاعات في شاشة "الحساب قيد المراجعة" وشاشة "نسيت كلمة المرور" في التطبيق.
-        </div>
-        <div style="font-size:1rem; font-weight:800; color:var(--teal-deep); margin-top:10px;" id="contactPreview">+222 XX XX XX XX</div>
-      </div>
-    </div>
-  </div>
-</div>
-
-<!-- ---------- Confirm modals ---------- -->
-<div class="confirm-overlay" id="confirmOverlay">
-  <div class="confirm-box">
-    <div class="c-icon" id="confirmIcon">⚠️</div>
-    <div class="c-title" id="confirmTitle">تأكيد</div>
-    <div class="c-sub" id="confirmSub"></div>
-    <div class="c-msg" id="confirmMsg" style="display:none;"></div>
-    <div class="confirm-actions">
-      <button class="confirm-cancel" id="confirmCancelBtn">إلغاء</button>
-      <button class="confirm-ok" id="confirmOkBtn">تأكيد</button>
-    </div>
-  </div>
-</div>
+<div id="root"></div>
 
 <script>
-  // TODO: replace with your real email once this connects to Firebase Auth —
-  // for now, only this exact address can log in, matching how StadBook's admin access works.
-  const ADMIN_EMAIL = 'kerima@example.com';
-
-  const loginScreen = document.getElementById('loginScreen');
-  const adminPanel = document.getElementById('adminPanel');
-  const loginError = document.getElementById('loginError');
-
-  document.getElementById('adminLoginForm').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const email = document.getElementById('adminEmail').value.trim().toLowerCase();
-    if(email === ADMIN_EMAIL.toLowerCase()){
-      loginError.classList.remove('show');
-      loginScreen.classList.add('hidden');
-      adminPanel.classList.add('open');
-      renderAccounts();
-      renderPayments();
-    } else {
-      loginError.classList.add('show');
-    }
+  // Same Firebase project as index.html — paste the same config here once created.
+  firebase.initializeApp({
+    apiKey: "AIzaSyD7PJk2IVq91EDMfo-EwPLVXQ5db0VaCe8",
+    authDomain: "qaaty-321f7.firebaseapp.com",
+    projectId: "qaaty-321f7",
+    storageBucket: "qaaty-321f7.firebasestorage.app",
+    messagingSenderId: "1028731985376",
+    appId: "1:1028731985376:web:dda1335c36ebc863e65f85"
   });
-
-  document.getElementById('adminLogout').addEventListener('click', () => {
-    adminPanel.classList.remove('open');
-    loginScreen.classList.remove('hidden');
-    document.getElementById('adminLoginForm').reset();
-  });
-
-  document.querySelectorAll('.admin-tabs button').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.admin-tabs button').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      const panelMap = { accounts:'adminAccountsPanel', payments:'adminPaymentsPanel', settings:'adminSettingsPanel' };
-      const target = panelMap[tab.dataset.adminTab];
-      document.querySelectorAll('.admin-tab-panel').forEach(p => p.classList.toggle('active', p.id === target));
-    });
-  });
-
-  function formatPhone(p){ return p.replace(/(\d{2})(?=\d)/g, '$1 ').trim(); }
-
-  // Compact number formatting for big aggregate totals — floors (never rounds up).
-  // Individual per-account amounts stay exact on purpose.
-  // Compact number formatting — matches StadBook exactly: only kicks in at 1,000,000+.
-  function fmtM(n){
-    if(n < 1000000) return n.toLocaleString('en-US');
-    const m = Math.floor(n / 1000000);
-    const d = Math.floor((n % 1000000) / 100000);
-    return d > 0 ? `${m},${d}M` : `${m}M`;
-  }
-  const monthNames = {0:'يناير',1:'فبراير',2:'مارس',3:'أبريل',4:'مايو',5:'يونيو',6:'يوليو',7:'أغسطس',8:'سبتمبر',9:'أكتوبر',10:'نوفمبر',11:'ديسمبر'};
-
-  /* ---------- Confirm modal helper ---------- */
-  const confirmOverlay = document.getElementById('confirmOverlay');
-  let confirmCallback = null;
-
-  function showConfirm({ icon, title, sub, okLabel, danger, onConfirm }){
-    document.getElementById('confirmIcon').textContent = icon;
-    document.getElementById('confirmTitle').textContent = title;
-    document.getElementById('confirmSub').textContent = sub || '';
-    document.getElementById('confirmMsg').style.display = 'none';
-    const okBtn = document.getElementById('confirmOkBtn');
-    okBtn.textContent = okLabel;
-    okBtn.className = 'confirm-ok' + (danger ? ' danger' : '');
-    confirmCallback = onConfirm;
-    confirmOverlay.classList.add('open');
-  }
-  function closeConfirm(){ confirmOverlay.classList.remove('open'); confirmCallback = null; }
-  document.getElementById('confirmCancelBtn').addEventListener('click', closeConfirm);
-  document.getElementById('confirmOkBtn').addEventListener('click', () => {
-    if(confirmCallback) confirmCallback();
-  });
-
-  /* ================= ACCOUNTS ================= */
-  const accounts = [
-    { id:1, hallName:'قاعة النور', phone:'0644778899', email:'nour.hall@email.com', signupDate:'2026-08-03', status:'pending' },
-    { id:2, hallName:'قاعة الزهراء', phone:'0522123456', email:'saida.zahra@email.com', signupDate:'2026-06-10', status:'active' },
-    { id:3, hallName:'قاعة الأمل', phone:'0699112233', email:'amal.hall@email.com', signupDate:'2026-07-20', status:'active' },
-    { id:4, hallName:'قاعة الفردوس', phone:'0677445566', email:'firdaws@email.com', signupDate:'2026-08-04', status:'pending' },
-    { id:5, hallName:'قاعة السعادة', phone:'0611998877', email:'saada.hall@email.com', signupDate:'2026-05-15', status:'active' },
-  ];
-
-  const accountSearch = document.getElementById('accountSearch');
-  accountSearch.addEventListener('input', renderAccounts);
-
-  function renderAccounts(){
-    document.getElementById('statTotal').textContent = accounts.length;
-    document.getElementById('statActive').textContent = accounts.filter(a => a.status === 'active').length;
-    document.getElementById('statPending').textContent = accounts.filter(a => a.status === 'pending').length;
-
-    const q = accountSearch.value.trim().toLowerCase();
-    const filtered = accounts.filter(a => !q || a.hallName.toLowerCase().includes(q) || a.email.toLowerCase().includes(q));
-    const statusLabel = { pending:'قيد المراجعة', active:'نشط', disabled:'موقوف' };
-
-    document.getElementById('adminAccountsList').innerHTML = filtered.map(a => `
-      <div class="account-row" data-id="${a.id}">
-        <div class="ar-main">
-          <div class="ar-name">${a.hallName}</div>
-          <div class="ar-meta">${a.email} · ${formatPhone(a.phone)}</div>
-          <div class="ar-meta">تاريخ التسجيل: ${a.signupDate}</div>
-        </div>
-        <span class="account-status ${a.status}">${statusLabel[a.status]}</span>
-        <div class="ar-actions">
-          <button class="${a.status === 'active' ? 'ar-toggle-on' : 'ar-toggle-off'}" data-action="toggle" title="${a.status === 'active' ? 'إيقاف' : 'تفعيل'}">${a.status === 'active' ? '🔒' : '✅'}</button>
-          <button class="ar-reset" data-action="reset" title="إعادة تعيين كلمة المرور">🔑</button>
-          <button class="ar-delete" data-action="delete" title="حذف">🗑️</button>
-        </div>
-      </div>
-    `).join('') || `<div class="empty-state">لا توجد حسابات مطابقة</div>`;
-  }
-
-  document.getElementById('adminAccountsList').addEventListener('click', (e) => {
-    const btn = e.target.closest('button[data-action]');
-    if(!btn) return;
-    const row = e.target.closest('.account-row');
-    const acc = accounts.find(a => a.id === parseInt(row.dataset.id, 10));
-    if(!acc) return;
-
-    if(btn.dataset.action === 'toggle'){
-      const willActivate = acc.status !== 'active';
-      showConfirm({
-        icon: willActivate ? '✅' : '🔒',
-        title: willActivate ? 'تفعيل هذا الحساب؟' : 'إيقاف هذا الحساب؟',
-        sub: acc.hallName,
-        okLabel: 'تأكيد',
-        danger: !willActivate,
-        onConfirm: () => {
-          acc.status = willActivate ? 'active' : 'disabled';
-          closeConfirm();
-          renderAccounts();
-        }
-      });
-    }
-
-    if(btn.dataset.action === 'reset'){
-      showConfirm({
-        icon: '🔑',
-        title: 'إرسال رابط إعادة تعيين كلمة المرور',
-        sub: `سيتم إرساله إلى: ${acc.email}`,
-        okLabel: 'إرسال',
-        onConfirm: () => {
-          document.getElementById('confirmMsg').textContent = '✓ تم الإرسال! (يتطلب اتصال Firebase الحقيقي)';
-          document.getElementById('confirmMsg').className = 'c-msg ok';
-          document.getElementById('confirmMsg').style.display = 'block';
-          setTimeout(closeConfirm, 1800);
-        }
-      });
-    }
-
-    if(btn.dataset.action === 'delete'){
-      showConfirm({
-        icon: '⚠️',
-        title: 'حذف هذا الحساب نهائيًا؟',
-        sub: acc.hallName,
-        okLabel: 'حذف',
-        danger: true,
-        onConfirm: () => {
-          accounts.splice(accounts.indexOf(acc), 1);
-          closeConfirm();
-          renderAccounts();
-        }
-      });
-    }
-  });
-
-  /* ================= PAYMENTS ================= */
-  let monthlyPrice = 1500;
-  let autoLockDay = null; // 1-28 or null
-  let payMonth = 7, payYear = 2026; // 0-indexed
-  const payments = {}; // { "year-month": { accountId: true } }
-  let selecting = false;
-  let selectedIds = new Set();
-
-  // populate autolock day dropdown (1-28)
-  const autolockSelect = document.getElementById('autolockDay');
-  for(let d = 1; d <= 28; d++){
-    const opt = document.createElement('option');
-    opt.value = d;
-    opt.textContent = `يوم ${d}`;
-    autolockSelect.appendChild(opt);
-  }
-  autolockSelect.addEventListener('change', () => {
-    autoLockDay = autolockSelect.value ? parseInt(autolockSelect.value, 10) : null;
-    updateAutolockCardStyle();
-  });
-  function updateAutolockCardStyle(){
-    document.getElementById('autolockCard').classList.toggle('on', !!autoLockDay);
-    const label = document.getElementById('autolockLabel');
-    label.className = 'autolock-label ' + (autoLockDay ? 'on' : 'off');
-    label.textContent = (autoLockDay ? '🔒' : '🔓') + ' القفل التلقائي';
-  }
-
-  // price editing
-  document.getElementById('editPriceBtn').addEventListener('click', () => {
-    document.getElementById('priceInput').value = monthlyPrice;
-    document.getElementById('priceDisplayRow').style.display = 'none';
-    document.getElementById('priceEditRow').style.display = 'flex';
-  });
-  document.getElementById('cancelPriceBtn').addEventListener('click', () => {
-    document.getElementById('priceDisplayRow').style.display = 'flex';
-    document.getElementById('priceEditRow').style.display = 'none';
-  });
-  document.getElementById('savePriceBtn').addEventListener('click', () => {
-    monthlyPrice = parseInt(document.getElementById('priceInput').value, 10) || monthlyPrice;
-    document.getElementById('priceValue').textContent = monthlyPrice.toLocaleString('en-US');
-    document.getElementById('priceDisplayRow').style.display = 'flex';
-    document.getElementById('priceEditRow').style.display = 'none';
-    renderPayments();
-  });
-
-  // month navigation
-  document.getElementById('prevPayMonth').addEventListener('click', () => {
-    payMonth--; if(payMonth < 0){ payMonth = 11; payYear--; }
-    renderPayments();
-  });
-  document.getElementById('nextPayMonth').addEventListener('click', () => {
-    payMonth++; if(payMonth > 11){ payMonth = 0; payYear++; }
-    renderPayments();
-  });
-
-  function monthKey(){ return `${payYear}-${payMonth}`; }
-  function isPaid(accId){ return !!(payments[monthKey()] && payments[monthKey()][accId]); }
-
-  const paymentSearch = document.getElementById('paymentSearch');
-  paymentSearch.addEventListener('input', renderPayments);
-
-  document.getElementById('toggleSelectMode').addEventListener('click', () => {
-    selecting = !selecting;
-    selectedIds = new Set();
-    document.getElementById('bulkRow').style.display = selecting ? 'flex' : 'none';
-    renderPayments();
-  });
-  document.getElementById('selectAllUnpaid').addEventListener('click', () => {
-    const q = paymentSearch.value.trim().toLowerCase();
-    const filtered = accounts.filter(a => !q || a.hallName.toLowerCase().includes(q) || a.email.toLowerCase().includes(q));
-    selectedIds = new Set(filtered.filter(a => !isPaid(a.id)).map(a => a.id));
-    renderPayments();
-  });
-  document.getElementById('markSelectedPaid').addEventListener('click', () => {
-    if(selectedIds.size === 0) return;
-    showConfirm({
-      icon:'☑', title:'تحديد الحسابات المختارة كمدفوعة؟', sub:`${selectedIds.size} حساب`,
-      okLabel:'تأكيد',
-      onConfirm: () => {
-        if(!payments[monthKey()]) payments[monthKey()] = {};
-        selectedIds.forEach(id => {
-          payments[monthKey()][id] = true;
-          const acc = accounts.find(a => a.id === id);
-          if(acc && acc.status !== 'pending') acc.status = 'active';
-        });
-        selectedIds = new Set();
-        selecting = false;
-        document.getElementById('bulkRow').style.display = 'none';
-        closeConfirm();
-        renderAccounts();
-        renderPayments();
-      }
-    });
-  });
-
-  function togglePaid(accId){
-    const acc = accounts.find(a => a.id === accId);
-    const wasPaid = isPaid(accId);
-    if(!payments[monthKey()]) payments[monthKey()] = {};
-
-    showConfirm({
-      icon: wasPaid ? '🔒' : '💰',
-      title: wasPaid ? 'إلغاء الدفع وقفل الحساب؟' : 'تحديد كمدفوع وفتح الحساب؟',
-      sub: acc.hallName,
-      okLabel: 'تأكيد',
-      danger: wasPaid,
-      onConfirm: () => {
-        payments[monthKey()][accId] = !wasPaid;
-        if(acc.status !== 'pending') acc.status = wasPaid ? 'disabled' : 'active';
-        closeConfirm();
-        renderAccounts();
-        renderPayments();
-      }
-    });
-  }
-
-  function renderPayments(){
-    document.getElementById('payMonthLabel').textContent = `${monthNames[payMonth]} ${payYear}`;
-    document.getElementById('priceValue').textContent = monthlyPrice.toLocaleString('en-US');
-
-    const q = paymentSearch.value.trim().toLowerCase();
-    const filtered = accounts.filter(a => !q || a.hallName.toLowerCase().includes(q) || a.email.toLowerCase().includes(q));
-
-    const paidCount = accounts.filter(a => isPaid(a.id)).length;
-    const unpaidCount = accounts.length - paidCount;
-    const pct = accounts.length > 0 ? Math.round(paidCount / accounts.length * 100) : 0;
-
-    document.getElementById('statReceived').textContent = fmtM(paidCount * monthlyPrice);
-    document.getElementById('statMissing').textContent = fmtM(unpaidCount * monthlyPrice);
-    document.getElementById('statExpected').textContent = fmtM(accounts.length * monthlyPrice);
-
-    document.getElementById('paidCountLabel').textContent = `${paidCount} مدفوع`;
-    document.getElementById('unpaidCountLabel').textContent = `${unpaidCount} غير مدفوع`;
-    document.getElementById('progressFill').style.width = pct + '%';
-    document.getElementById('progressPct').textContent = pct;
-
-    document.getElementById('markSelectedPaid').classList.toggle('enabled', selectedIds.size > 0);
-    document.getElementById('markSelectedPaid').textContent = 'تحديد كمدفوع' + (selectedIds.size > 0 ? ` (${selectedIds.size})` : '');
-
-    document.getElementById('adminPaymentsList').innerHTML = filtered.map(a => {
-      const paid = isPaid(a.id);
-      const isSel = selectedIds.has(a.id);
-      return `
-        <div class="account-row ${selecting && !paid ? 'selectable' : ''}" data-id="${a.id}">
-          ${selecting ? `<div class="ar-checkbox ${isSel ? 'checked' : ''}">${isSel ? '✓' : ''}</div>` : ''}
-          <div class="ar-main">
-            <div class="ar-name">${a.hallName}${a.status === 'disabled' ? '<span class="lock-tag">🔒 موقوف</span>' : ''}</div>
-            <div class="ar-meta">${a.email}</div>
-            <div class="ar-pay-line ${paid ? 'paid' : 'unpaid'}">${paid ? '✓ مدفوع - ' + monthlyPrice.toLocaleString('en-US') + ' اوقية' : '* ' + monthlyPrice.toLocaleString('en-US') + ' اوقية مستحق'}</div>
-          </div>
-          ${!selecting ? `<button class="ar-pay-btn ${paid ? 'is-paid' : 'is-unpaid'}" data-pay-toggle="${a.id}">${paid ? '✓ مدفوع' : 'استلام'}</button>` : ''}
-        </div>
-      `;
-    }).join('') || `<div class="empty-state">لا توجد حسابات مطابقة</div>`;
-  }
-
-  document.getElementById('adminPaymentsList').addEventListener('click', (e) => {
-    if(selecting){
-      const row = e.target.closest('.account-row');
-      if(!row) return;
-      const id = parseInt(row.dataset.id, 10);
-      if(isPaid(id)) return; // can't select already-paid rows
-      if(selectedIds.has(id)) selectedIds.delete(id); else selectedIds.add(id);
-      renderPayments();
-      return;
-    }
-    const btn = e.target.closest('button[data-pay-toggle]');
-    if(btn) togglePaid(parseInt(btn.dataset.payToggle, 10));
-  });
-
-  /* ---------- Auto-lock simulation ---------- */
-  // On load, if today matches the configured lock day, deactivate any active
-  // account that hasn't been marked paid for the current real-world month.
-  function runAutoLockCheck(){
-    if(!autoLockDay) return;
-    const now = new Date();
-    if(now.getDate() !== autoLockDay) return;
-    const key = `${now.getFullYear()}-${now.getMonth()}`;
-    accounts.forEach(acc => {
-      if(acc.status === 'active' && !(payments[key] && payments[key][acc.id])){
-        acc.status = 'disabled';
-      }
-    });
-    renderAccounts();
-    renderPayments();
-  }
-
-  updateAutolockCardStyle();
-
-  /* ---------- Contact/WhatsApp settings ---------- */
-  // Stored under a shared key so the client app (if hosted on the same domain)
-  // can read the same value. Once Firebase is connected, this moves to a
-  // "settings/contact" document like StadBook does, shared properly across devices.
-  const CONTACT_KEY = 'stadbook_hall_contact_whatsapp';
-
-  function loadContact(){
-    const saved = localStorage.getItem(CONTACT_KEY) || '';
-    document.getElementById('contactWhatsapp').value = saved;
-    document.getElementById('contactPreview').textContent = saved || '+222 XX XX XX XX';
-  }
-  document.getElementById('saveContactBtn').addEventListener('click', () => {
-    const val = document.getElementById('contactWhatsapp').value.trim();
-    if(!val) return;
-    localStorage.setItem(CONTACT_KEY, val);
-    document.getElementById('contactPreview').textContent = val;
-    const msg = document.getElementById('saveContactMsg');
-    msg.style.display = 'block';
-    setTimeout(() => { msg.style.display = 'none'; }, 2500);
-  });
-  loadContact();
+  const auth = firebase.auth();
+  const db = firebase.firestore();
 </script>
 
+<script type="text/babel">
+const { useState, useEffect, useMemo } = React;
+
+// TODO: replace with your real admin email once confirmed
+const ADMIN_EMAIL = 'kerima@example.com';
+
+function fmtM(n){
+  if(n < 1000000) return n.toLocaleString('en-US');
+  const m = Math.floor(n / 1000000);
+  const d = Math.floor((n % 1000000) / 100000);
+  return d > 0 ? `${m},${d}M` : `${m}M`;
+}
+function formatPhone(p){ return (p||'').replace(/(\d{2})(?=\d)/g, '$1 ').trim(); }
+
+// ── ADMIN LOGIN ──────────────────────────────────────────────────────────
+function AdminLogin(){
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async () => {
+    setError('');
+    if(email.trim().toLowerCase() !== ADMIN_EMAIL.toLowerCase()){
+      setError('هذا البريد الإلكتروني غير مصرح له بالدخول');
+      return;
+    }
+    setLoading(true);
+    try {
+      await auth.signInWithEmailAndPassword(email.trim(), password);
+    } catch(e) {
+      setError('كلمة المرور غير صحيحة');
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="login-screen">
+      <div className="login-card">
+        <div className="login-avatar" style={{background:'none'}}>
+          <svg viewBox="0 0 512 512" width="40" height="40"><defs><linearGradient id="bgAdmin" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#8791E8"/><stop offset="100%" stopColor="#4D48C4"/></linearGradient></defs><rect x="0" y="0" width="512" height="512" rx="115" fill="url(#bgAdmin)"/><rect x="175" y="54" width="26" height="56" rx="13" fill="#FFFFFF"/><rect x="311" y="54" width="26" height="56" rx="13" fill="#FFFFFF"/><rect x="96" y="118" width="320" height="290" rx="32" fill="#FFFFFF"/><path d="M128,118 L384,118 A32,32 0 0 1 416,150 L416,198 L96,198 L96,150 A32,32 0 0 1 128,118 Z" fill="#4D48C4"/><circle cx="256" cy="303" r="62" fill="#E8598F"/><path d="M228,304 L248,324 L288,280" fill="none" stroke="#FFFFFF" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </div>
+        <h1>لوحة تحكم المسؤول</h1>
+        <p>الوصول مقتصر على حساب المسؤول فقط</p>
+        <p style={{background:'var(--glass)', border:'1px dashed var(--glass-border)', borderRadius:12, padding:'10px 14px', fontSize:'.76rem', marginBottom:20}}>
+          للمعاينة فقط: اكتب <strong>{ADMIN_EMAIL}</strong>
+        </p>
+        <form className="login-form" onSubmit={e=>{e.preventDefault();handleLogin();}}>
+          {error && <div className="login-error show">{error}</div>}
+          <div className="field"><label>البريد الإلكتروني</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></div>
+          <div className="field"><label>كلمة المرور</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} required/></div>
+          <button type="submit" className="login-submit" disabled={loading}>{loading?'جارٍ الدخول...':'تسجيل الدخول'}</button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ── ACCOUNTS TAB ─────────────────────────────────────────────────────────
+function AccountsTab(){
+  const [accounts, setAccounts] = useState([]);
+  const [search, setSearch] = useState('');
+  const [confirmModal, setConfirmModal] = useState(null); // {type, account}
+
+  useEffect(() => {
+    const unsub = db.collection('users').onSnapshot(snap => {
+      setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return unsub;
+  }, []);
+
+  const filtered = accounts.filter(a =>
+    !search || (a.hallName||'').toLowerCase().includes(search.toLowerCase()) || (a.email||'').toLowerCase().includes(search.toLowerCase())
+  );
+  const total = accounts.length;
+  const active = accounts.filter(a => a.active).length;
+  const pending = accounts.filter(a => !a.active).length;
+
+  const doToggle = async (acc) => {
+    await db.collection('users').doc(acc.id).update({ active: !acc.active });
+    setConfirmModal(null);
+  };
+  const doDelete = async (acc) => {
+    await db.collection('users').doc(acc.id).delete();
+    setConfirmModal(null);
+  };
+  const doResetPassword = async (acc) => {
+    try {
+      await auth.sendPasswordResetEmail(acc.email);
+      setConfirmModal({ type:'reset-done', account: acc });
+    } catch(e) {
+      alert('خطأ: ' + e.message);
+    }
+  };
+
+  return (
+    <div>
+      <div className="stat-grid">
+        <div className="stat"><div className="s-label">الكل</div><div className="s-value" style={{color:'var(--ink)'}}>{total}</div></div>
+        <div className="stat"><div className="s-label">نشط</div><div className="s-value" style={{color:'#1E7A63'}}>{active}</div></div>
+        <div className="stat"><div className="s-label">قيد المراجعة</div><div className="s-value" style={{color:'var(--amber)'}}>{pending}</div></div>
+      </div>
+      <div className="search-row">
+        <div className="search-box">
+          <input placeholder="بحث بالاسم أو البريد الإلكتروني..." value={search} onChange={e=>setSearch(e.target.value)}/>
+        </div>
+      </div>
+      {filtered.map(acc => (
+        <div className="account-row" key={acc.id}>
+          <div className="ar-main">
+            <div className="ar-name">{acc.hallName}</div>
+            <div className="ar-meta">{acc.email} · {formatPhone(acc.phone)}</div>
+          </div>
+          <span className={`account-status ${acc.active?'active':'pending'}`}>{acc.active?'نشط':'قيد المراجعة'}</span>
+          <div className="ar-actions">
+            <button className={acc.active?'ar-toggle-on':'ar-toggle-off'} onClick={()=>doToggle(acc)}>{acc.active?'🔒':'✅'}</button>
+            <button className="ar-reset" onClick={()=>doResetPassword(acc)}>🔑</button>
+            <button className="ar-delete" onClick={()=>setConfirmModal({type:'delete', account:acc})}>🗑️</button>
+          </div>
+        </div>
+      ))}
+
+      {confirmModal && confirmModal.type === 'delete' && (
+        <div className="confirm-overlay open">
+          <div className="confirm-box">
+            <div className="c-icon">⚠️</div>
+            <div className="c-title">حذف هذا الحساب نهائيًا؟</div>
+            <div className="c-sub">{confirmModal.account.hallName}</div>
+            <div className="confirm-actions">
+              <button className="confirm-cancel" onClick={()=>setConfirmModal(null)}>إلغاء</button>
+              <button className="confirm-ok danger" onClick={()=>doDelete(confirmModal.account)}>حذف</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {confirmModal && confirmModal.type === 'reset-done' && (
+        <div className="confirm-overlay open">
+          <div className="confirm-box">
+            <div className="c-icon">✓</div>
+            <div className="c-title">تم الإرسال!</div>
+            <div className="c-sub">{confirmModal.account.email}</div>
+            <div className="confirm-actions">
+              <button className="confirm-ok" style={{flex:1}} onClick={()=>setConfirmModal(null)}>حسنًا</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── PAYMENTS TAB ─────────────────────────────────────────────────────────
+function PaymentsTab(){
+  const [accounts, setAccounts] = useState([]);
+  const [monthlyPrice, setMonthlyPrice] = useState(1500);
+  const [autoLockDay, setAutoLockDay] = useState('');
+  const [payMonth, setPayMonth] = useState(new Date().getMonth());
+  const [payYear, setPayYear] = useState(new Date().getFullYear());
+  const [payments, setPayments] = useState({});
+  const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    const unsub = db.collection('users').onSnapshot(snap => {
+      setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return unsub;
+  }, []);
+  useEffect(() => {
+    const unsub = db.collection('settings').doc('billing').onSnapshot(snap => {
+      if(snap.exists){
+        const d = snap.data();
+        if(d.monthlyPrice) setMonthlyPrice(d.monthlyPrice);
+        if(d.autoLockDay !== undefined) setAutoLockDay(d.autoLockDay || '');
+      }
+    });
+    return unsub;
+  }, []);
+  useEffect(() => {
+    const key = `${payYear}-${payMonth}`;
+    const unsub = db.collection('payments').doc(key).onSnapshot(snap => {
+      setPayments(snap.exists ? snap.data() : {});
+    });
+    return unsub;
+  }, [payMonth, payYear]);
+
+  const monthKey = `${payYear}-${payMonth}`;
+  const isPaid = (accId) => !!payments[accId];
+  const paidCount = accounts.filter(a => isPaid(a.id)).length;
+  const unpaidCount = accounts.length - paidCount;
+
+  const togglePaid = async (acc) => {
+    const wasPaid = isPaid(acc.id);
+    await db.collection('payments').doc(monthKey).set({ [acc.id]: !wasPaid }, { merge: true });
+    if(acc.active !== undefined) await db.collection('users').doc(acc.id).update({ active: wasPaid ? false : true });
+  };
+  const savePrice = async (val) => {
+    setMonthlyPrice(val);
+    await db.collection('settings').doc('billing').set({ monthlyPrice: val }, { merge: true });
+  };
+  const saveLockDay = async (val) => {
+    setAutoLockDay(val);
+    await db.collection('settings').doc('billing').set({ autoLockDay: val ? Number(val) : null }, { merge: true });
+  };
+
+  const filtered = accounts.filter(a => !search || (a.hallName||'').toLowerCase().includes(search.toLowerCase()));
+
+  return (
+    <div>
+      <div className="card">
+        <div className="label">🔒 القفل التلقائي</div>
+        <select value={autoLockDay} onChange={e=>saveLockDay(e.target.value)}>
+          <option value="">لا شيء (معطل)</option>
+          {Array.from({length:28},(_,i)=>i+1).map(d => <option key={d} value={d}>يوم {d}</option>)}
+        </select>
+      </div>
+      <div className="card">
+        <div className="label">السعر الشهري / قاعة</div>
+        <div className="price-row">
+          <div className="p-value">{monthlyPrice.toLocaleString('en-US')} <span>اوقية/شهر</span></div>
+          <button className="edit-price-btn" onClick={()=>{ const v = prompt('السعر الجديد:', monthlyPrice); if(v) savePrice(Number(v)); }}>✎ تعديل</button>
+        </div>
+      </div>
+      <div className="card">
+        <div className="label">الشهر</div>
+        <div className="month-nav">
+          <button onClick={()=>{ if(payMonth===0){setPayMonth(11);setPayYear(y=>y-1);} else setPayMonth(m=>m-1); }}>‹</button>
+          <div className="m-label">{['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'][payMonth]} {payYear}</div>
+          <button onClick={()=>{ if(payMonth===11){setPayMonth(0);setPayYear(y=>y+1);} else setPayMonth(m=>m+1); }}>›</button>
+        </div>
+      </div>
+      <div className="stat-grid">
+        <div className="stat"><div className="s-label">المستلم</div><div className="s-value" style={{color:'#1E7A63'}}>{fmtM(paidCount*monthlyPrice)}</div></div>
+        <div className="stat"><div className="s-label">المتبقي</div><div className="s-value" style={{color:'var(--coral)'}}>{fmtM(unpaidCount*monthlyPrice)}</div></div>
+        <div className="stat"><div className="s-label">المتوقع</div><div className="s-value" style={{color:'var(--ink-muted)'}}>{fmtM(accounts.length*monthlyPrice)}</div></div>
+      </div>
+      <div className="search-row"><div className="search-box"><input placeholder="بحث..." value={search} onChange={e=>setSearch(e.target.value)}/></div></div>
+      {filtered.map(acc => {
+        const paid = isPaid(acc.id);
+        return (
+          <div className="account-row" key={acc.id}>
+            <div className="ar-main">
+              <div className="ar-name">{acc.hallName}</div>
+              <div className={`ar-pay-line ${paid?'paid':'unpaid'}`}>{paid?`✓ مدفوع - ${monthlyPrice.toLocaleString('en-US')} اوقية`:`* ${monthlyPrice.toLocaleString('en-US')} اوقية مستحق`}</div>
+            </div>
+            <button className={`ar-pay-btn ${paid?'is-paid':'is-unpaid'}`} onClick={()=>togglePaid(acc)}>{paid?'✓ مدفوع':'استلام'}</button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── SETTINGS TAB (WhatsApp contact) ──────────────────────────────────────
+function AdminSettingsTab(){
+  const [wa, setWa] = useState('');
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    db.collection('settings').doc('contact').get().then(snap => {
+      if(snap.exists) setWa(snap.data().whatsapp || '');
+    });
+  }, []);
+
+  const save = async () => {
+    await db.collection('settings').doc('contact').set({ whatsapp: wa }, { merge: true });
+    setSaved(true);
+    setTimeout(()=>setSaved(false), 2500);
+  };
+
+  return (
+    <div>
+      <div className="card">
+        <div className="label">رقم واتساب للتواصل</div>
+        <div className="field" style={{marginBottom:10}}><input value={wa} onChange={e=>setWa(e.target.value)} placeholder="+222 XX XX XX XX"/></div>
+        <button className="login-submit" style={{marginTop:0}} onClick={save}>حفظ</button>
+        {saved && <div style={{textAlign:'center', marginTop:10, fontSize:'.8rem', fontWeight:700, color:'#1E7A63'}}>✓ تم الحفظ</div>}
+      </div>
+    </div>
+  );
+}
+
+// ── ADMIN PANEL SHELL ─────────────────────────────────────────────────────
+function AdminPanel(){
+  const [tab, setTab] = useState('accounts');
+  return (
+    <div className="admin-panel open">
+      <div className="admin-topbar">
+        <h2>لوحة تحكم المسؤول</h2>
+        <button onClick={()=>auth.signOut()}>تسجيل الخروج</button>
+      </div>
+      <div className="admin-body">
+        <div className="admin-tabs">
+          <button className={tab==='accounts'?'active':''} onClick={()=>setTab('accounts')}>الحسابات</button>
+          <button className={tab==='payments'?'active':''} onClick={()=>setTab('payments')}>المدفوعات</button>
+          <button className={tab==='settings'?'active':''} onClick={()=>setTab('settings')}>الإعدادات</button>
+        </div>
+        {tab==='accounts' && <AccountsTab/>}
+        {tab==='payments' && <PaymentsTab/>}
+        {tab==='settings' && <AdminSettingsTab/>}
+      </div>
+    </div>
+  );
+}
+
+// ── ROOT ──────────────────────────────────────────────────────────────────
+function Root(){
+  const [authUser, setAuthUser] = useState(undefined);
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged(u => setAuthUser(u));
+    return unsub;
+  }, []);
+  if(authUser === undefined) return <div className="loading-screen"><div className="spinner"></div></div>;
+  if(!authUser || authUser.email !== ADMIN_EMAIL) return <AdminLogin/>;
+  return <AdminPanel/>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Root/>);
+
+</script>
 </body>
 </html>
