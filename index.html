@@ -2120,35 +2120,6 @@ function App(){
     document.documentElement.lang = lang;
   }, [lang]);
 
-  // Blocks the white rubber-band bounce on iPhone without touching how
-  // scrolling behaves anywhere else. The CSS property that normally does
-  // this (overscroll-behavior) turned out to break single-finger scrolling
-  // entirely on Samsung's browser, so instead this only steps in at the
-  // exact moment someone drags past the very top or very bottom of the
-  // page — everywhere else it does nothing and stays out of the way.
-  useEffect(() => {
-    let startY = 0;
-    const onTouchStart = (e) => { startY = e.touches[0].clientY; };
-    const onTouchMove = (e) => {
-      // Sheets, PDFs, and the login screen scroll independently of the main
-      // page — let the browser handle those on its own, don't interfere.
-      if(e.target.closest('.sheet, .print-overlay, .login-screen')) return;
-      const y = e.touches[0].clientY;
-      const goingDown = y > startY; // finger moving downward = trying to pull content down
-      const atTop = window.scrollY <= 0;
-      const atBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 1;
-      if((atTop && goingDown) || (atBottom && !goingDown)){
-        e.preventDefault();
-      }
-    };
-    document.addEventListener('touchstart', onTouchStart, { passive: true });
-    document.addEventListener('touchmove', onTouchMove, { passive: false });
-    return () => {
-      document.removeEventListener('touchstart', onTouchStart);
-      document.removeEventListener('touchmove', onTouchMove);
-    };
-  }, []);
-
   useEffect(() => {
     db.collection('settings').doc('contact').get().then(snap => {
       if(snap.exists && snap.data().whatsapp) setWhatsapp(snap.data().whatsapp);
