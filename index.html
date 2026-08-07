@@ -44,7 +44,10 @@
     background:linear-gradient(155deg, var(--mint-1) 0%, var(--mint-2) 45%, var(--teal-3) 100%);
     overflow-x:hidden;
     overscroll-behavior:none;
+    scrollbar-width:none;
+    -ms-overflow-style:none;
   }
+  html::-webkit-scrollbar, body::-webkit-scrollbar{ display:none; width:0; height:0; }
   *{box-sizing:border-box; margin:0; padding:0;}
   body{
     min-height:100vh;
@@ -207,7 +210,9 @@
     padding:22px 22px 28px;
     box-shadow:0 -20px 50px rgba(42,36,112,.4);
     animation:sheetUp .22s ease-out;
+    scrollbar-width:none; -ms-overflow-style:none;
   }
+  .sheet::-webkit-scrollbar{ display:none; width:0; height:0; }
   @keyframes sheetUp{ from{ transform:translateY(24px); opacity:0; } to{ transform:translateY(0); opacity:1; } }
   .sheet-handle{ width:40px; height:4px; border-radius:4px; background:rgba(255,255,255,0.25); margin:0 auto 16px; }
   .sheet-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:18px; }
@@ -1045,6 +1050,24 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
   const [editPhone, setEditPhone] = useState('');
   const [editTotal, setEditTotal] = useState('');
   const [editError, setEditError] = useState('');
+  const [dragY, setDragY] = useState(0);
+  const [dragging, setDragging] = useState(false);
+  const dragStartY = React.useRef(0);
+
+  const handleTouchStart = (e) => {
+    dragStartY.current = e.touches[0].clientY;
+    setDragging(true);
+  };
+  const handleTouchMove = (e) => {
+    if(!dragging) return;
+    const delta = e.touches[0].clientY - dragStartY.current;
+    if(delta > 0) setDragY(delta); // only allow dragging downward
+  };
+  const handleTouchEnd = () => {
+    setDragging(false);
+    if(dragY > 90){ onClose(); } // dragged down far enough — dismiss
+    setDragY(0);
+  };
 
   const paid = dayData ? (dayData.payments||[]).reduce((a,p)=>a+p.amount,0) : 0;
   const remaining = dayData ? dayData.total - paid : 0;
@@ -1054,8 +1077,17 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
 
   return (
     <div className="overlay open">
-      <div className="sheet">
-        <div className="sheet-handle"></div>
+      <div
+        className="sheet"
+        style={{ transform:`translateY(${dragY}px)`, transition: dragging ? 'none' : 'transform .25s ease' }}
+      >
+        <div
+          className="sheet-handle"
+          style={{ padding:'10px 0', margin:'-10px 0 10px', cursor:'grab' }}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
+        ></div>
         <div className="sheet-head">
           <h3>{dayData ? dayData.clientName : dateLabel}</h3>
           <button className="sheet-close" onClick={onClose}>✕</button>
@@ -1175,7 +1207,8 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
               const amt = Number(payAmount);
               if(!amt || amt <= 0 || amt > remaining) return;
               onRecordPayment(dateKey, amt, payMethod);
-              onClose();
+              setPayAmount('');
+              setScreen('view');
             }}>
               <div className="field">
                 <label>المبلغ المدفوع الآن (اوقية)</label>
@@ -1495,6 +1528,14 @@ function MainApp({ uid, userDoc }){
   const [monthlyExportScope, setMonthlyExportScope] = useState(null); // null | 'all' | 'YYYY-MM'
   const [dailyExportDay, setDailyExportDay] = useState(null); // null | dateKey
   const [receiptView, setReceiptView] = useState(null); // null | {dateKey, paymentIndex}
+
+  // Lock the background page from scrolling whenever any sheet/modal is open —
+  // otherwise the page behind it keeps scrolling along with the modal's own content.
+  useEffect(() => {
+    const anyModalOpen = !!(selectedDay || monthlyExportScope !== null || dailyExportDay || receiptView);
+    document.body.style.overflow = anyModalOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [selectedDay, monthlyExportScope, dailyExportDay, receiptView]);
 
   const WEEKDAY_NAMES = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 
