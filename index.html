@@ -1189,25 +1189,82 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
   const [dragY, setDragY] = useState(0);
   const [dragging, setDragging] = useState(false);
   const dragStartY = React.useRef(0);
+  const draggingRef = React.useRef(false);
+  const dragYRef = React.useRef(0);
+  const handleWrapRef = React.useRef(null);
+  const sheetContentRef = React.useRef(null);
 
-  const handleTouchStart = (e) => {
-    dragStartY.current = e.touches[0].clientY;
-    setDragging(true);
-  };
-  const handleTouchMove = (e) => {
-    if(!dragging) return;
-    const delta = e.touches[0].clientY - dragStartY.current;
-    if(delta > 0){
-      e.preventDefault(); // stop native scroll from also moving the page behind the sheet
-      setDragY(delta); // only allow dragging downward
-    }
-  };
-  const handleTouchEnd = (e) => {
-    e.preventDefault();
-    setDragging(false);
-    if(dragY > 90){ onClose(); } // dragged down far enough — dismiss
-    setDragY(0);
-  };
+  // Native (non-passive) listeners for the drag handle — JSX onTouchMove is
+  // attached passively by React by default, so preventDefault() inside it can
+  // silently no-op, which is why the background sometimes still moved.
+  React.useEffect(() => {
+    const el = handleWrapRef.current;
+    if(!el) return;
+
+    const onStart = (e) => {
+      dragStartY.current = e.touches[0].clientY;
+      draggingRef.current = true;
+      setDragging(true);
+    };
+    const onMove = (e) => {
+      if(!draggingRef.current) return;
+      const delta = e.touches[0].clientY - dragStartY.current;
+      if(delta > 0){
+        e.preventDefault(); // real native prevent — stops the page behind from moving
+        e.stopPropagation(); // don't also trigger the sheet's own scroll-boundary listener
+        dragYRef.current = delta;
+        setDragY(delta);
+      }
+    };
+    const onEnd = (e) => {
+      draggingRef.current = false;
+      setDragging(false);
+      if(dragYRef.current > 5){
+        e.preventDefault(); // only swallow the tap when an actual drag happened
+        e.stopPropagation();
+        if(dragYRef.current > 90){ onClose(); }
+      }
+      // a plain tap (dragYRef.current ~0, e.g. tapping the ✕) is left alone
+      // so the browser's normal click event still fires on the close button
+      dragYRef.current = 0;
+      setDragY(0);
+    };
+
+    el.addEventListener('touchstart', onStart, { passive:true });
+    el.addEventListener('touchmove', onMove, { passive:false });
+    el.addEventListener('touchend', onEnd, { passive:false });
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+      el.removeEventListener('touchend', onEnd);
+    };
+  }, [onClose]);
+
+  // Contain scrolling inside the sheet's own content so hitting the top/bottom
+  // doesn't rubber-band into the page behind it (can't use overscroll-behavior
+  // here — it broke Samsung's single-finger scroll elsewhere in the app).
+  React.useEffect(() => {
+    const el = sheetContentRef.current;
+    if(!el) return;
+    let startY = 0;
+
+    const onStart = (e) => { startY = e.touches[0].clientY; };
+    const onMove = (e) => {
+      const delta = e.touches[0].clientY - startY;
+      const atTop = el.scrollTop <= 0;
+      const atBottom = el.scrollTop + el.clientHeight >= el.scrollHeight - 1;
+      if((atTop && delta > 0) || (atBottom && delta < 0)){
+        e.preventDefault();
+      }
+    };
+
+    el.addEventListener('touchstart', onStart, { passive:true });
+    el.addEventListener('touchmove', onMove, { passive:false });
+    return () => {
+      el.removeEventListener('touchstart', onStart);
+      el.removeEventListener('touchmove', onMove);
+    };
+  }, []);
 
   const paid = dayData ? (dayData.payments||[]).reduce((a,p)=>a+p.amount,0) : 0;
   const remaining = dayData ? dayData.total - paid : 0;
@@ -1219,13 +1276,12 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
     <div className="overlay open">
       <div
         className="sheet"
+        ref={sheetContentRef}
         style={{ transform:`translateY(${dragY}px)`, transition: dragging ? 'none' : 'transform .25s ease' }}
       >
         <div
+          ref={handleWrapRef}
           style={{ cursor:'grab', touchAction:'none' }}
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
         >
           <div className="sheet-handle"></div>
           <div className="sheet-head">
