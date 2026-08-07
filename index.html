@@ -2,14 +2,29 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
 <title>قاعتي | لوحة التحكم</title>
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="shortcut icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="قاعتي">
+<meta name="theme-color" content="#4D48C4">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+
+<!-- PINNED VERSIONS — do not change to @latest, this exact combination is tested and working -->
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.23.10/babel.min.js"></script>
+
 <style>
+
   :root{
     --mint-1:#DAE1FF;
     --mint-2:#A9B4F5;
@@ -638,1416 +653,686 @@
     .no-print{ display:none !important; }
     .doc{ box-shadow:none; margin:0; max-width:100%; }
   }
+
+
+/* ===== Supplemental styles for the React-rendered app shell ===== */
+.loading-screen{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; background:linear-gradient(155deg, var(--mint-1) 0%, var(--mint-2) 45%, var(--teal-3) 100%); }
+.spinner{ width:40px; height:40px; border:3px solid rgba(255,255,255,.5); border-top-color:var(--teal-deep); border-radius:50%; animation:spin .8s linear infinite; }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
+.app-shell{ min-height:100vh; background:var(--bg, #F3F2FF); padding-bottom:90px; }
+.page{ padding:16px; max-width:480px; margin:0 auto; }
+
+.stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:14px 0; }
+.stat-card{ background:var(--glass); border:1px solid var(--glass-border); border-radius:16px; padding:14px; text-align:center; }
+.stat-card.highlight{ background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); border:none; }
+.stat-card.highlight span{ color:#fff; }
+.stat-card.highlight label{ color:rgba(255,255,255,.8); }
+.stat-card span{ display:block; font-size:1.3rem; font-weight:800; color:var(--ink); }
+.stat-card label{ display:block; font-size:.72rem; color:var(--ink-muted); margin-top:4px; }
+
+.cal-nav{ display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; font-weight:800; }
+.cal-nav button{ background:var(--glass); border:1px solid var(--glass-border); width:32px; height:32px; border-radius:50%; font-size:1.1rem; color:var(--teal-deep); }
+.cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:4px; }
+.cal-dayname{ text-align:center; font-size:.68rem; font-weight:700; color:var(--ink-muted); padding-bottom:4px; }
+.cal-cell{ aspect-ratio:1/1; border-radius:10px; border:none; background:var(--glass); font-size:.8rem; font-weight:700; color:var(--ink); }
+.cal-cell.today{ border:1.5px solid var(--teal-deep); }
+.cal-cell.booked{ background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); color:#fff; }
+
+.bottom-nav{ position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid var(--glass-border); display:flex; padding:8px 0 22px; z-index:20; }
+.bottom-nav button{ flex:1; background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:2px; font-size:1.1rem; color:var(--ink-muted); }
+.bottom-nav button span{ font-size:.62rem; font-weight:700; }
+.bottom-nav button.active{ color:var(--teal-deep); }
+
+.sheet-overlay{ position:fixed; inset:0; background:rgba(30,27,58,.4); display:flex; align-items:flex-end; z-index:50; }
+.sheet{ background:#fff; width:100%; border-radius:24px 24px 0 0; padding:14px 20px 30px; max-height:80vh; overflow-y:auto; }
+.sheet-handle{ width:40px; height:4px; background:#ddd; border-radius:2px; margin:0 auto 16px; }
+.sheet-title{ font-size:1.1rem; font-weight:800; color:var(--ink); margin-bottom:4px; }
+.sheet-sub{ font-size:.85rem; color:var(--ink-muted); margin-bottom:16px; }
+.ds-stats{ display:flex; justify-content:space-between; background:var(--bg,#F3F2FF); border-radius:14px; padding:14px; margin-bottom:16px; }
+.ds-stats > div{ text-align:center; flex:1; }
+.ds-stats span{ display:block; font-weight:800; color:var(--ink); }
+.ds-stats label{ display:block; font-size:.68rem; color:var(--ink-muted); margin-top:2px; }
+
+.btn-primary{ background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); color:#fff; border:none; border-radius:14px; padding:13px; font-weight:800; font-family:'Tajawal',sans-serif; }
+.btn-danger{ background:var(--coral); color:#fff; border:none; border-radius:14px; padding:13px; font-weight:800; font-family:'Tajawal',sans-serif; }
+.btn-danger-outline{ background:var(--coral-soft); color:var(--coral); border:none; border-radius:14px; padding:13px; font-weight:800; font-family:'Tajawal',sans-serif; }
+
 </style>
 </head>
 <body>
-
-<div class="login-screen" id="loginScreen">
-  <div class="login-card">
-    <div class="login-lang-switch" id="loginLangSwitch">
-      <button class="active" data-loginlang="ar">🇲🇷 AR</button>
-      <button data-loginlang="fr">🇫🇷 FR</button>
-      <button data-loginlang="en">🇬🇧 EN</button>
-    </div>
-
-    <!-- Guide steps + contact info, shown above the logo — matches StadBook's login order -->
-    <div class="login-guide" id="loginGuide">
-      <div class="lg-step">
-        <div class="lg-num">1</div>
-        <div class="lg-text" data-login-i18n="guideStep1">أنشئ/ي حسابك</div>
-      </div>
-      <div class="lg-step">
-        <div class="lg-num">2</div>
-        <div class="lg-text" data-login-i18n="guideStep2">تواصل/ي معنا عبر واتساب</div>
-      </div>
-      <div class="lg-step">
-        <div class="lg-num">3</div>
-        <div class="lg-text" data-login-i18n="guideStep3">فعّل/ي حسابك وابدأ/ي الحجز!</div>
-      </div>
-    </div>
-    <div class="login-contact-card">
-      <div class="lcc-label" data-login-i18n="contactLabel">📞 تحتاج/ين إلى الوصول؟ تواصل/ي معنا!</div>
-      <div class="lcc-number">WhatsApp: <span id="loginGuideWhatsapp">+222 XX XX XX XX</span></div>
-    </div>
-
-    <div class="login-avatar" style="background:none;">
-      <svg viewBox="0 0 512 512" width="40" height="40" style="display:block;">
-  <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#8791E8"/>
-      <stop offset="100%" stop-color="#4D48C4"/>
-    </linearGradient>
-    <radialGradient id="bulbGlow" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stop-color="#FFF6D8" stop-opacity="0.9"/>
-      <stop offset="40%" stop-color="#FFD34D" stop-opacity="0.5"/>
-      <stop offset="100%" stop-color="#FFD34D" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="diamondGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#C5F1FF"/>
-      <stop offset="45%" stop-color="#4FC3F7"/>
-      <stop offset="100%" stop-color="#1565C0"/>
-    </linearGradient>
-  </defs>
-  <rect x="0" y="0" width="512" height="512" rx="115" fill="url(#bg)"/>
-
-  <!-- gold string lights, hanging from the top only — not reaching the bottom -->
-  <g stroke="#E8B923" stroke-width="2.5" opacity="0.85">
-    <line x1="70"  y1="0" x2="70"  y2="300"/>
-    <line x1="150" y1="0" x2="150" y2="360"/>
-    <line x1="230" y1="0" x2="230" y2="260"/>
-    <line x1="310" y1="0" x2="310" y2="260"/>
-    <line x1="390" y1="0" x2="390" y2="360"/>
-    <line x1="460" y1="0" x2="460" y2="300"/>
-  </g>
-
-  <!-- bulbs: soft glow halo + bright core + tiny highlight, for a more realistic lit look -->
-  <g id="bulbs">
-    <!-- string 1 -->
-    <g><circle cx="70" cy="60"  r="20" fill="url(#bulbGlow)"/><circle cx="70" cy="60"  r="8" fill="#FFCA3A"/><circle cx="70" cy="57"  r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="70" cy="160" r="20" fill="url(#bulbGlow)"/><circle cx="70" cy="160" r="8" fill="#FFCA3A"/><circle cx="70" cy="157" r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="70" cy="260" r="20" fill="url(#bulbGlow)"/><circle cx="70" cy="260" r="8" fill="#FFCA3A"/><circle cx="70" cy="257" r="2.5" fill="#FFF9E6"/></g>
-    <!-- string 2 -->
-    <g><circle cx="150" cy="90"  r="20" fill="url(#bulbGlow)"/><circle cx="150" cy="90"  r="8" fill="#FFCA3A"/><circle cx="150" cy="87"  r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="150" cy="200" r="20" fill="url(#bulbGlow)"/><circle cx="150" cy="200" r="8" fill="#FFCA3A"/><circle cx="150" cy="197" r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="150" cy="320" r="20" fill="url(#bulbGlow)"/><circle cx="150" cy="320" r="8" fill="#FFCA3A"/><circle cx="150" cy="317" r="2.5" fill="#FFF9E6"/></g>
-    <!-- string 3 -->
-    <g><circle cx="230" cy="50"  r="20" fill="url(#bulbGlow)"/><circle cx="230" cy="50"  r="8" fill="#FFCA3A"/><circle cx="230" cy="47"  r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="230" cy="150" r="20" fill="url(#bulbGlow)"/><circle cx="230" cy="150" r="8" fill="#FFCA3A"/><circle cx="230" cy="147" r="2.5" fill="#FFF9E6"/></g>
-    <!-- string 4 -->
-    <g><circle cx="310" cy="50"  r="20" fill="url(#bulbGlow)"/><circle cx="310" cy="50"  r="8" fill="#FFCA3A"/><circle cx="310" cy="47"  r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="310" cy="150" r="20" fill="url(#bulbGlow)"/><circle cx="310" cy="150" r="8" fill="#FFCA3A"/><circle cx="310" cy="147" r="2.5" fill="#FFF9E6"/></g>
-    <!-- string 5 -->
-    <g><circle cx="390" cy="90"  r="20" fill="url(#bulbGlow)"/><circle cx="390" cy="90"  r="8" fill="#FFCA3A"/><circle cx="390" cy="87"  r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="390" cy="200" r="20" fill="url(#bulbGlow)"/><circle cx="390" cy="200" r="8" fill="#FFCA3A"/><circle cx="390" cy="197" r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="390" cy="320" r="20" fill="url(#bulbGlow)"/><circle cx="390" cy="320" r="8" fill="#FFCA3A"/><circle cx="390" cy="317" r="2.5" fill="#FFF9E6"/></g>
-    <!-- string 6 -->
-    <g><circle cx="460" cy="60"  r="20" fill="url(#bulbGlow)"/><circle cx="460" cy="60"  r="8" fill="#FFCA3A"/><circle cx="460" cy="57"  r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="460" cy="160" r="20" fill="url(#bulbGlow)"/><circle cx="460" cy="160" r="8" fill="#FFCA3A"/><circle cx="460" cy="157" r="2.5" fill="#FFF9E6"/></g>
-    <g><circle cx="460" cy="260" r="20" fill="url(#bulbGlow)"/><circle cx="460" cy="260" r="8" fill="#FFCA3A"/><circle cx="460" cy="257" r="2.5" fill="#FFF9E6"/></g>
-  </g>
-
-  <!-- wedding arch / gateway -->
-  <path d="M170,404 L170,258 A86,86 0 0 1 342,258 L342,404 L314,404 L314,268 A58,58 0 0 0 198,268 L198,404 Z" fill="#FFFFFF"/>
-  <rect x="146" y="404" width="220" height="14" rx="7" fill="#FFFFFF"/>
-
-  <!-- red carpet with gold borders, leading out from the entrance all the way to the bottom edge -->
-  <path d="M180,418 L332,418 L382,512 L130,512 Z" fill="#C41E3A" stroke="#E8B923" stroke-width="4" stroke-linejoin="round"/>
-  <path d="M191,420 L151,510" stroke="#E8B923" stroke-width="2.5" opacity="0.85"/>
-  <path d="M321,420 L361,510" stroke="#E8B923" stroke-width="2.5" opacity="0.85"/>
-
-  <!-- small gold engagement rings, replacing the old dot -->
-  <g fill="none" stroke="#E8B923" stroke-width="5">
-    <circle cx="245" cy="196" r="15"/>
-    <circle cx="267" cy="196" r="15"/>
-  </g>
-
-  <!-- small faceted blue diamond, mounted on top of the right ring -->
-  <path d="M267,171 L275,180 L267,189 L259,180 Z" fill="url(#diamondGrad)" stroke="#0D47A1" stroke-width="1"/>
-  <path d="M267,171 L267,189 M259,180 L275,180" stroke="#E3F7FF" stroke-width="1" opacity="0.7"/>
-  <path d="M262,175 L264,177 L262,179 L260,177 Z" fill="#FFFFFF" opacity="0.9"/>
-</svg>
-    </div>
-    <h1 data-login-i18n="brand">قاعتي</h1>
-    <p data-login-i18n="tagline">منصة لتسيير قاعات الأفراح والمناسبات</p>
-
-    <!-- Panel 1: login / signup tabs -->
-    <div class="login-panel active" id="panelAuth">
-      <div class="login-tabs">
-        <button class="active" data-tab="login" data-login-i18n="tabLogin">تسجيل الدخول</button>
-        <button data-tab="signup" data-login-i18n="tabSignup">حساب جديد</button>
-      </div>
-
-      <form class="login-form" id="loginForm">
-        <div class="field">
-          <label data-login-i18n="fieldPhone">رقم الهاتف</label>
-          <input type="tel" id="loginPhone" placeholder="06 XX XX XX XX" required>
-        </div>
-        <div class="field">
-          <label data-login-i18n="fieldPassword">كلمة المرور</label>
-          <input type="password" id="loginPassword" placeholder="••••••••" required>
-        </div>
-        <button type="submit" class="login-submit" data-login-i18n="btnLogin">تسجيل الدخول</button>
-      </form>
-      <a href="#" class="login-forgot" id="forgotLink" data-login-i18n="forgotLink">نسيت كلمة المرور؟</a>
-
-      <form class="login-form" id="signupForm" style="display:none;">
-        <div class="field">
-          <label data-login-i18n="fieldHallName">اسم القاعة</label>
-          <input type="text" id="signupHallName" placeholder="مثال: قاعة النور" required>
-        </div>
-        <div class="field">
-          <label data-login-i18n="fieldPhone">رقم الهاتف</label>
-          <input type="tel" id="signupPhone" placeholder="06 XX XX XX XX" required>
-        </div>
-        <div class="field">
-          <label data-login-i18n="fieldEmail">البريد الإلكتروني</label>
-          <input type="email" id="signupEmail" placeholder="example@email.com" required>
-        </div>
-        <div class="field">
-          <label data-login-i18n="fieldPassword">كلمة المرور</label>
-          <input type="password" id="signupPassword" placeholder="••••••••" required>
-        </div>
-        <div class="field">
-          <label data-login-i18n="fieldPasswordConfirm">تأكيد كلمة المرور</label>
-          <input type="password" id="signupPasswordConfirm" placeholder="••••••••" required>
-        </div>
-        <button type="submit" class="login-submit" data-login-i18n="btnSignup">إنشاء الحساب</button>
-      </form>
-    </div>
-
-    <!-- Panel 2: pending approval, shown right after signup (full block, matches StadBook) -->
-    <div class="login-panel" id="panelPending">
-      <div class="login-form" style="text-align:center;">
-        <div style="font-size:2.4rem; margin-bottom:6px;">⏳</div>
-        <h3 style="font-size:1.05rem; font-weight:800; color:var(--teal-dark); margin-bottom:8px;" data-login-i18n="pendingTitle">الحساب في انتظار التفعيل</h3>
-        <div class="login-note" data-login-i18n="pendingDesc">
-          تم إنشاء حسابك. سيتم تفعيله خلال 24 ساعة بعد تأكيد الدفع.
-        </div>
-        <div style="background:var(--coral-soft); border-radius:16px; padding:16px; margin-bottom:16px;">
-          <div style="font-size:.76rem; color:var(--coral); font-weight:700; margin-bottom:4px;" data-login-i18n="pendingContact">تواصل معنا عبر واتساب لتفعيل اشتراكك</div>
-          <div style="font-size:1.05rem; font-weight:800; color:var(--ink);" id="pendingWhatsapp">+222 XX XX XX XX</div>
-        </div>
-        <button type="button" class="btn-secondary" data-back="panelAuth" style="width:100%;" data-login-i18n="backToLogin">→ العودة لتسجيل الدخول</button>
-      </div>
-    </div>
-
-    <!-- Panel 3: forgot password — WhatsApp contact only, no self-service (matches StadBook exactly) -->
-    <div class="login-panel" id="panelForgotEmail">
-      <div class="login-form">
-        <div style="font-size:1rem; font-weight:800; color:var(--teal-dark); margin-bottom:16px;" data-login-i18n="forgotHeading">نسيت كلمة المرور؟</div>
-        <div style="background:var(--glass-strong); border-radius:16px; padding:20px; text-align:center; margin-bottom:16px;">
-          <div style="font-size:1.8rem; margin-bottom:8px;">📞</div>
-          <div class="login-note" style="margin-bottom:12px;" data-login-i18n="forgotDesc">تواصل معنا على واتساب وسنقوم بإعادة تعيين كلمة مرورك.</div>
-          <div style="font-size:.85rem; font-weight:700; color:var(--teal-deep);">WhatsApp</div>
-          <div style="font-size:1.15rem; font-weight:800; color:var(--ink); margin-top:4px;" id="forgotWhatsapp">+222 XX XX XX XX</div>
-        </div>
-        <button type="button" class="btn-secondary" data-back="panelAuth" style="width:100%;" data-login-i18n="backToLoginArrow">→ رجوع لتسجيل الدخول</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-<div class="bubble b1"></div>
-<div class="bubble b2"></div>
-<div class="bubble b3"></div>
-<div class="bubble b4"></div>
-
-<header class="hero">
-  <div class="avatar-ring" id="avatarRingLetter">ق</div>
-  <h1 id="dashboardHallName">قاعتي</h1>
-  <p>لتنظيم الأفراح والمناسبات</p>
-</header>
-
-<div class="owner-row">
-  <span>أهلاً، <strong>سعيدة</strong></span>
-  <a href="#" class="logout" id="logoutLink1">تسجيل الخروج</a>
-</div>
-
-<main>
-  <div class="page active" id="page-home">
-    <div class="cards" style="grid-template-columns:1fr 1fr;">
-      <div class="card">
-        <div class="label">المداخيل هذا الشهر</div>
-        <div class="value" id="homeRevenueValue">0 اوقية</div>
-        <div class="sub" id="homeRevenueSub">من 0 حجوزات</div>
-      </div>
-      <div class="card">
-        <div class="label">حجوزات هذا الشهر</div>
-        <div class="value" id="homeBookingsValue">0</div>
-        <div class="sub" id="homeBookingsSub">0 غير مكتملة الدفع</div>
-      </div>
-    </div>
-
-    <div class="panel">
-      <div class="cal-head">
-        <h2 id="calMonthTitle">أغسطس 2026</h2>
-        <div class="cal-nav">
-          <button id="prevMonth" aria-label="الشهر السابق">‹</button>
-          <button id="nextMonth" aria-label="الشهر التالي">›</button>
-        </div>
-      </div>
-      <div class="weekdays">
-        <span>أحد</span><span>إثنين</span><span>ثلاثاء</span><span>أربعاء</span><span>خميس</span><span>جمعة</span><span>سبت</span>
-      </div>
-      <div class="days" id="days"></div>
-      <div class="legend">
-        <span><i class="free"></i> متاح</span>
-        <span><i class="pending"></i> متبقي مبلغ</span>
-        <span><i class="booked"></i> محجوز</span>
-      </div>
-      <div class="hint-row">اضغط على أي تاريخ لعرض التفاصيل أو إضافة حجز جديد</div>
-    </div>
-  </div><!-- /page-home -->
-
-  <div class="page" id="page-agenda">
-    <div class="search-row">
-      <div class="search-box">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-        <input type="tel" id="phoneSearch" placeholder="ابحث برقم الهاتف">
-      </div>
-      <select class="month-select" id="monthSelect">
-        <option value="all">كل الأشهر</option>
-      </select>
-      <button class="export-icon-btn" id="openMonthlyExport" aria-label="تصدير الجدول للحارس">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
-      </button>
-    </div>
-    <div class="filter-chips" id="statusChips">
-      <button class="chip active" data-filter="all">الكل</button>
-      <button class="chip" data-filter="booked">محجوز</button>
-      <button class="chip" data-filter="pending">متبقي مبلغ</button>
-    </div>
-    <div id="agendaCount" style="font-size:.78rem; color:var(--ink-muted); margin-bottom:12px;"></div>
-    <div class="agenda-list" id="agendaList"></div>
-  </div><!-- /page-agenda -->
-
-  <div class="page" id="page-earnings">
-
-    <div class="cards" style="grid-template-columns:1fr 1fr; margin-bottom:18px;">
-      <div class="card">
-        <div class="label" id="earningsCardLabel">إجمالي المداخيل</div>
-        <div class="value" id="earningsTotal">0 اوقية</div>
-        <div class="sub" id="earningsCount">0 حجوزات</div>
-      </div>
-      <div class="card accent">
-        <div class="label">المتبقي من العروبين</div>
-        <div class="value" id="earningsRemaining">0 اوقية</div>
-        <div class="sub">عبر الحجوزات المعلقة</div>
-      </div>
-    </div>
-
-    <!-- Level 1: month cards -->
-    <div id="monthCardsView">
-      <div class="agenda-list" id="monthCardsList"></div>
-    </div>
-
-    <!-- Level 2: single month detail -->
-    <div id="monthDetailView" style="display:none;">
-      <div class="month-detail-head">
-        <button id="backToMonths" aria-label="رجوع">‹</button>
-        <h2 id="monthDetailTitle">أغسطس 2026</h2>
-      </div>
-
-      <div class="ds-section-title" style="color:var(--ink-muted);">الحجوزات</div>
-      <div class="agenda-list" id="monthBookingsList"></div>
-    </div>
-  </div><!-- /page-earnings -->
-
-  </div><!-- /page-earnings -->
-
-  <div class="page" id="page-settings">
-    <div class="settings-group">
-      <h4>معلومات القاعة</h4>
-      <div class="settings-card">
-        <div class="settings-row"><span class="s-label">اسم القاعة</span><input type="text" id="settingsHallName" value="قاعتي"></div>
-        <div class="settings-row"><span class="s-label">رقم الهاتف</span><input type="tel" value="0522 12 34 56"></div>
-        <div class="settings-row"><span class="s-label">العنوان</span><input type="text" value="الدار البيضاء"></div>
-      </div>
-    </div>
-
-    <div class="settings-group">
-      <h4>التفضيلات</h4>
-      <div class="settings-card">
-        <div class="settings-row">
-          <span class="s-label">اللغة</span>
-          <div class="lang-pills">
-            <button class="active">ع</button><button>Fr</button><button>En</button>
-          </div>
-        </div>
-        <div class="settings-row"><span class="s-label">تذكير المناسبات القادمة (قبل 3 أيام)</span><button class="toggle on" aria-label="تفعيل تذكير المناسبات"></button></div>
-        <div class="settings-row"><span class="s-label">تذكير العروبين المعلقة</span><button class="toggle on" aria-label="تفعيل التذكير"></button></div>
-      </div>
-    </div>
-
-    <div class="settings-group">
-      <h4>كلمة المرور</h4>
-      <div class="settings-card" style="padding:16px;">
-        <button class="btn-secondary" id="sendResetLinkBtn" style="width:100%; background:rgba(77,72,196,.12); color:var(--teal-deep);">إرسال رابط إعادة تعيين كلمة المرور</button>
-      </div>
-    </div>
-
-    <div class="settings-group">
-      <h4>الحساب</h4>
-      <div class="settings-card">
-        <div class="settings-row"><span class="s-label">سعيدة</span><span class="s-value">مالكة القاعة</span></div>
-      </div>
-      <button class="btn-danger" id="logoutLink2">تسجيل الخروج</button>
-    </div>
-  </div><!-- /page-settings -->
-</main>
-
-<div class="bottom-nav">
-  <button class="active" data-page="home" aria-label="الرئيسية">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>
-  </button>
-  <button data-page="agenda" aria-label="الأجندة">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
-  </button>
-  <button data-page="earnings" aria-label="المداخيل">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h3.2a1.8 1.8 0 010 3.6h-2a1.8 1.8 0 000 3.6h3.3"/></svg>
-  </button>
-  <button data-page="settings" aria-label="الإعدادات">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.55V21a2 2 0 11-4 0v-.09a1.7 1.7 0 00-1-1.55 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.7 1.7 0 00.34-1.87 1.7 1.7 0 00-1.55-1H3a2 2 0 110-4h.09a1.7 1.7 0 001.55-1 1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06a1.7 1.7 0 001.87.34H9a1.7 1.7 0 001-1.55V3a2 2 0 114 0v.09a1.7 1.7 0 001 1.55 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.34 1.87V9a1.7 1.7 0 001.55 1H21a2 2 0 110 4h-.09a1.7 1.7 0 00-1.55 1z"/></svg>
-  </button>
-</div>
-
-<!-- ---------- Day details sheet ---------- -->
-<div class="overlay" id="daySheetOverlay">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-head">
-      <h3 id="dsTitleHead">تفاصيل اليوم</h3>
-      <button class="sheet-close" id="closeDaySheet" aria-label="إغلاق">✕</button>
-    </div>
-    <div id="daySheetBody"><!-- populated by JS --></div>
-  </div>
-</div>
-
-<!-- ---------- Record payment sheet ---------- -->
-<div class="overlay" id="recordPaymentOverlay">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-head">
-      <h3>تسجيل دفعة</h3>
-      <button class="sheet-close" id="closeRecordPayment" aria-label="إغلاق">✕</button>
-    </div>
-
-    <div class="remaining-box">
-      <div class="r-label">المبلغ المتبقي</div>
-      <div class="r-value" id="remainingAmount">0 اوقية</div>
-    </div>
-
-    <form id="recordPaymentForm">
-      <div class="field">
-        <label>المبلغ المدفوع الآن (اوقية)</label>
-        <input type="number" id="paymentInput" placeholder="0" min="1" required>
-        <button type="button" class="btn-pay-full" id="payFullBtn">تسديد كامل المبلغ المتبقي</button>
-      </div>
-      <div class="field">
-        <label>تاريخ الدفعة</label>
-        <input type="date" id="paymentDateInput">
-      </div>
-      <div class="field">
-        <label>طريقة الدفع</label>
-        <select id="paymentMethodInput">
-          <option value="نقدا">نقدا</option>
-          <option value="Bankily">Bankily</option>
-          <option value="Masrvi">Masrvi</option>
-          <option value="Sedad">Sedad</option>
-          <option value="أخرى">أخرى</option>
-        </select>
-      </div>
-
-      <div class="sheet-actions">
-        <button type="button" class="btn-secondary" id="cancelRecordPayment">إلغاء</button>
-        <button type="submit" class="btn-primary">تأكيد الدفعة</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- ---------- Add booking sheet ---------- -->
-<div class="overlay" id="addBookingOverlay">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-head">
-      <h3>حجز جديد</h3>
-      <button class="sheet-close" id="closeAddBooking" aria-label="إغلاق">✕</button>
-    </div>
-    <form id="addBookingForm">
-      <div class="field">
-        <label>اسم الزبون</label>
-        <input type="text" id="fClient" placeholder="مثال: خديجة و يوسف" required>
-      </div>
-      <div class="field">
-        <label>رقم الهاتف</label>
-        <input type="tel" id="fPhone" placeholder="06 XX XX XX XX" required>
-      </div>
-      <div class="field">
-        <label>تاريخ المناسبة</label>
-        <input type="date" id="fDate" required>
-      </div>
-      <div class="field-row">
-        <div class="field">
-          <label>المبلغ الإجمالي (اوقية)</label>
-          <input type="number" id="fTotal" placeholder="0" min="0" required>
-        </div>
-        <div class="field">
-          <label>المبلغ المدفوع الآن (اوقية)</label>
-          <input type="number" id="fPaid" placeholder="0" min="0" value="0">
-        </div>
-      </div>
-      <div class="field">
-        <label>طريقة الدفع</label>
-        <select id="fPaymentMethod">
-          <option value="نقدا">نقدا</option>
-          <option value="Bankily">Bankily</option>
-          <option value="Masrvi">Masrvi</option>
-          <option value="Sedad">Sedad</option>
-          <option value="أخرى">أخرى</option>
-        </select>
-      </div>
-      <div class="sheet-actions">
-        <button type="button" class="btn-secondary" id="cancelAddBooking">إلغاء</button>
-        <button type="submit" class="btn-primary">حفظ الحجز</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- ---------- Edit booking sheet ---------- -->
-<div class="overlay" id="editBookingOverlay">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-head">
-      <h3>تعديل التفاصيل</h3>
-      <button class="sheet-close" id="closeEditBooking" aria-label="إغلاق">✕</button>
-    </div>
-    <form id="editBookingForm">
-      <div class="field">
-        <label>اسم الزبون</label>
-        <input type="text" id="eClient" required>
-      </div>
-      <div class="field">
-        <label>رقم الهاتف</label>
-        <input type="tel" id="ePhone" required>
-      </div>
-      <div class="field">
-        <label>المبلغ الإجمالي (اوقية)</label>
-        <input type="number" id="eTotal" min="0" required>
-      </div>
-      <div class="sheet-actions">
-        <button type="button" class="btn-secondary" id="cancelEditBooking">إلغاء</button>
-        <button type="submit" class="btn-primary">حفظ التعديلات</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- ---------- Monthly export (guard schedule) ---------- -->
-<div class="print-overlay" id="monthlyExportOverlay">
-  <div class="print-topbar">
-    <button id="closeMonthlyExport" aria-label="إغلاق">✕</button>
-    <button class="print-btn" id="printMonthlyExport">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
-      طباعة / حفظ PDF
-    </button>
-  </div>
-  <div class="doc">
-    <div class="doc-header">
-      <div class="brand">
-        <div class="mark">ق</div>
-        <div>
-          <h1 id="monthlyDocHallName">قاعتي</h1>
-          <div class="sub">لتنظيم الأفراح والمناسبات</div>
-        </div>
-      </div>
-      <div class="meta">0522 12 34 56<br>الدار البيضاء</div>
-    </div>
-    <div class="doc-title">
-      <h2 id="monthlyDocTitle">جدول المناسبات — أغسطس 2026</h2>
-      <p>للمشاركة مع حارس القاعة</p>
-    </div>
-    <table>
-      <thead><tr><th>التاريخ</th><th>الزبون</th><th>الهاتف</th><th>الحالة</th></tr></thead>
-      <tbody id="monthlyDocBody"></tbody>
-    </table>
-    <div class="doc-footer">
-      <span id="monthlyDocDate">تم الإصدار بتاريخ —</span>
-      <span>قاعتي</span>
-    </div>
-  </div>
-</div>
-
-<!-- ---------- Daily export (client slip) ---------- -->
-<div class="print-overlay" id="dailyExportOverlay">
-  <div class="print-topbar">
-    <button id="closeDailyExport" aria-label="إغلاق">✕</button>
-    <button class="print-btn" id="printDailyExport">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
-      طباعة / حفظ PDF
-    </button>
-  </div>
-  <div class="doc">
-    <div class="doc-header">
-      <div class="brand">
-        <div class="mark">ق</div>
-        <div>
-          <h1 id="dailyDocHallName">قاعتي</h1>
-          <div class="sub">لتنظيم الأفراح والمناسبات</div>
-        </div>
-      </div>
-      <div class="meta">0522 12 34 56<br>الدار البيضاء</div>
-    </div>
-    <div class="slip" id="dailySlipBody"><!-- populated by JS --></div>
-  </div>
-</div>
-
-<!-- ---------- Payment receipt ---------- -->
-<div class="print-overlay" id="receiptOverlay">
-  <div class="print-topbar">
-    <button id="closeReceipt" aria-label="إغلاق">✕</button>
-    <button class="print-btn" id="printReceipt">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
-      طباعة / حفظ PDF
-    </button>
-  </div>
-  <div class="doc">
-    <div class="doc-header">
-      <div class="brand">
-        <div class="mark">ق</div>
-        <div>
-          <h1 id="receiptDocHallName">قاعتي</h1>
-          <div class="sub">لتنظيم الأفراح والمناسبات</div>
-        </div>
-      </div>
-      <div class="meta">0522 12 34 56<br>الدار البيضاء</div>
-    </div>
-    <div class="doc-title">
-      <h2>إيصال دفع</h2>
-      <p id="receiptDate">—</p>
-    </div>
-    <div id="receiptBody"><!-- populated by JS --></div>
-  </div>
-</div>
+<div id="root"></div>
 
 <script>
-  /* ---------- Shared contact number (set by the admin panel) ---------- */
-  // Reads the same localStorage key the admin panel writes to — works when
-  // both files are hosted on the same domain. Once Firebase is connected,
-  // this becomes a shared "settings/contact" document instead, like StadBook.
-  const sharedWhatsapp = localStorage.getItem('stadbook_hall_contact_whatsapp') || '+222 XX XX XX XX';
-  document.getElementById('pendingWhatsapp').textContent = sharedWhatsapp;
-  document.getElementById('forgotWhatsapp').textContent = sharedWhatsapp;
-  document.getElementById('loginGuideWhatsapp').textContent = sharedWhatsapp;
-
-  /* ---------- Login screen translations (AR/FR/EN), matching StadBook's login ---------- */
-  const LOGIN_T = {
-    ar: {
-      brand:'قاعتي', tagline:'منصة لتسيير قاعات الأفراح والمناسبات',
-      guideStep1:'١. أنشئ/ي حسابك', guideStep2:'٢. تواصل/ي معنا عبر واتساب', guideStep3:'٣. فعّل/ي حسابك وابدأ/ي الحجز!',
-      contactLabel:'📞 تحتاج/ين إلى الوصول؟ تواصل/ي معنا!',
-      tabLogin:'تسجيل الدخول', tabSignup:'حساب جديد',
-      fieldPhone:'رقم الهاتف', fieldPassword:'كلمة المرور', fieldHallName:'اسم القاعة',
-      fieldEmail:'البريد الإلكتروني', fieldPasswordConfirm:'تأكيد كلمة المرور',
-      btnLogin:'تسجيل الدخول', btnSignup:'إنشاء الحساب', forgotLink:'نسيت كلمة المرور؟',
-      pendingTitle:'الحساب في انتظار التفعيل',
-      pendingDesc:'تم إنشاء حسابك. سيتم تفعيله خلال 24 ساعة بعد تأكيد الدفع.',
-      pendingContact:'تواصل معنا عبر واتساب لتفعيل اشتراكك',
-      backToLogin:'→ العودة لتسجيل الدخول',
-      forgotHeading:'نسيت كلمة المرور؟',
-      forgotDesc:'تواصل معنا على واتساب وسنقوم بإعادة تعيين كلمة مرورك.',
-      backToLoginArrow:'→ رجوع لتسجيل الدخول',
-    },
-    fr: {
-      brand:'Qaaty', tagline:'Plateforme de gestion de salles de fête',
-      guideStep1:'1. Créez votre compte', guideStep2:'2. Contactez-nous sur WhatsApp', guideStep3:'3. Activez et commencez à réserver !',
-      contactLabel:"📞 Besoin d'accès ? Contactez-nous !",
-      tabLogin:'Connexion', tabSignup:'Créer un compte',
-      fieldPhone:'Numéro de téléphone', fieldPassword:'Mot de passe', fieldHallName:'Nom de la salle',
-      fieldEmail:'Email', fieldPasswordConfirm:'Confirmer le mot de passe',
-      btnLogin:'Se connecter', btnSignup:'Créer le compte', forgotLink:'Mot de passe oublié ?',
-      pendingTitle:"Compte en attente d'activation",
-      pendingDesc:'Votre compte a été créé. Il sera activé sous 24h après confirmation du paiement.',
-      pendingContact:'Contactez-nous sur WhatsApp pour activer votre abonnement',
-      backToLogin:'→ Retour à la connexion',
-      forgotHeading:'Mot de passe oublié ?',
-      forgotDesc:'Contactez-nous sur WhatsApp et nous réinitialiserons votre mot de passe.',
-      backToLoginArrow:'→ Retour à la connexion',
-    },
-    en: {
-      brand:'Qaaty', tagline:'A platform for managing wedding halls',
-      guideStep1:'1. Create your account', guideStep2:'2. Contact us on WhatsApp', guideStep3:'3. Get activated & start booking!',
-      contactLabel:'📞 Need access? Contact us!',
-      tabLogin:'Sign In', tabSignup:'Sign Up',
-      fieldPhone:'Phone number', fieldPassword:'Password', fieldHallName:'Hall name',
-      fieldEmail:'Email', fieldPasswordConfirm:'Confirm password',
-      btnLogin:'Sign In', btnSignup:'Create Account', forgotLink:'Forgot password?',
-      pendingTitle:'Account Pending Activation',
-      pendingDesc:'Your account was created. It will be activated within 24h after payment confirmation.',
-      pendingContact:'Contact us on WhatsApp to activate your subscription',
-      backToLogin:'→ Back to login',
-      forgotHeading:'Forgot password?',
-      forgotDesc:'Contact us on WhatsApp and we will reset your password for you.',
-      backToLoginArrow:'→ Back to login',
-    },
-  };
-
-  function applyLoginLang(lang){
-    const dict = LOGIN_T[lang];
-    document.querySelectorAll('[data-login-i18n]').forEach(el => {
-      const key = el.dataset.loginI18n;
-      if(dict[key] !== undefined) el.textContent = dict[key];
-    });
-    document.querySelectorAll('#loginLangSwitch button').forEach(b => b.classList.toggle('active', b.dataset.loginlang === lang));
-  }
-  document.querySelectorAll('#loginLangSwitch button').forEach(btn => {
-    btn.addEventListener('click', () => applyLoginLang(btn.dataset.loginlang));
+  // ===================================================================
+  // FIREBASE CONFIG — replace these placeholder values with your real
+  // project's config once you've created the Firebase project.
+  // Firebase Console → Project Settings → Your apps → Web app → Config
+  // ===================================================================
+  firebase.initializeApp({
+    apiKey: "AIzaSyD7PJk2IVq91EDMfo-EwPLVXQ5db0VaCe8",
+    authDomain: "qaaty-321f7.firebaseapp.com",
+    projectId: "qaaty-321f7",
+    storageBucket: "qaaty-321f7.firebasestorage.app",
+    messagingSenderId: "1028731985376",
+    appId: "1:1028731985376:web:dda1335c36ebc863e65f85"
   });
-
-  /* ---------- Login (demo — no real auth/SMS backend yet) ---------- */
-  const loginScreen = document.getElementById('loginScreen');
-
-  function enterApp(){ loginScreen.style.display = 'none'; }
-  function showLoginScreen(){
-    loginScreen.style.display = 'flex';
-    showPanel('panelAuth');
-  }
-
-  function showPanel(id){
-    document.querySelectorAll('.login-panel').forEach(p => p.classList.toggle('active', p.id === id));
-  }
-  document.querySelectorAll('[data-back]').forEach(btn => {
-    btn.addEventListener('click', () => showPanel(btn.dataset.back));
-  });
-
-  // login / signup tab toggle
-  document.querySelectorAll('.login-tabs button').forEach(tab => {
-    tab.addEventListener('click', () => {
-      document.querySelectorAll('.login-tabs button').forEach(t => t.classList.remove('active'));
-      tab.classList.add('active');
-      const isSignup = tab.dataset.tab === 'signup';
-      document.getElementById('loginForm').style.display = isSignup ? 'none' : 'block';
-      document.getElementById('forgotLink').style.display = isSignup ? 'none' : 'block';
-      document.getElementById('signupForm').style.display = isSignup ? 'block' : 'none';
-    });
-  });
-
-  document.getElementById('loginForm').addEventListener('submit', (e) => {
-    e.preventDefault();
-    enterApp();
-  });
-
-  // The tenant's own hall name — shown on the dashboard and on every PDF/receipt
-  // (since those are issued by the hall itself, not by the قاعتي app).
-  // Defaults to sample data until a real signup sets it for real.
-  let currentHallName = 'قاعتي';
-  function applyHallName(name){
-    currentHallName = name;
-    document.getElementById('dashboardHallName').textContent = name;
-    document.getElementById('avatarRingLetter').textContent = name.trim().charAt(0);
-    document.getElementById('monthlyDocHallName').textContent = name;
-    document.getElementById('dailyDocHallName').textContent = name;
-    document.getElementById('receiptDocHallName').textContent = name;
-    document.getElementById('settingsHallName').value = name;
-  }
-  applyHallName('قاعة الزهراء'); // demo default — replace with the real signup value below
-
-  document.getElementById('signupForm').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const hallName = document.getElementById('signupHallName').value.trim();
-    if(hallName){
-      // this updates the dashboard AND every PDF/receipt with the tenant's real hall name —
-      // the login screen itself always shows the app's own "قاعتي" branding, never a hall name
-      applyHallName(hallName);
-    }
-    // account stays fully blocked until manually activated within 24h — same flow as StadBook
-    showPanel('panelPending');
-  });
-
-  // forgot password — WhatsApp contact only, no self-service (matches StadBook)
-  document.getElementById('forgotLink').addEventListener('click', (e) => {
-    e.preventDefault();
-    showPanel('panelForgotEmail');
-  });
-
-  ['logoutLink1', 'logoutLink2'].forEach(id => {
-    document.getElementById(id).addEventListener('click', (e) => {
-      e.preventDefault();
-      showLoginScreen();
-    });
-  });
-
-  const year = 2026;
-  let currentMonth = 7; // 0-indexed — the month currently shown on Home calendar
-  const monthNames = {0:'يناير',1:'فبراير',2:'مارس',3:'أبريل',4:'مايو',5:'يونيو',6:'يوليو',7:'أغسطس',8:'سبتمبر',9:'أكتوبر',10:'نوفمبر',11:'ديسمبر'};
-  const today = 4; // demo "today" marker, only meaningful while viewing August
-
-  const bookingsByMonth = {
-    6: {
-      5:  { status:'booked', client:'ريم و عبد الله', type:'حفل زفاف', phone:'0623456789', total:10000, paid:10000,
-            payments:[{date:'2026-06-01', amount:5000, method:'نقدا'},{date:'2026-06-05', amount:5000, method:'Bankily'}] },
-      12: { status:'booked', client:'مريم بلحسن', type:'خطوبة', phone:'0666112233', total:5000, paid:5000,
-            payments:[{date:'2026-06-12', amount:5000, method:'Masrvi'}] },
-      20: { status:'booked', client:'يوسف و هدى', type:'حفل زفاف', phone:'0677554433', total:14000, paid:14000,
-            payments:[{date:'2026-06-10', amount:7000, method:'Sedad'},{date:'2026-06-20', amount:7000, method:'نقدا'}] },
-    },
-    7: {
-      3:  { status:'booked',  client:'خديجة و يوسف', type:'حفل زفاف', phone:'0661234567', total:12000, paid:12000,
-            payments:[{date:'2026-07-10', amount:6000, method:'نقدا'},{date:'2026-08-01', amount:6000, method:'Bankily'}] },
-      8:  { status:'pending', client:'أسماء بنعلي',  type:'خطوبة',    phone:'0677881230', total:6000,  paid:2000,
-            payments:[{date:'2026-07-25', amount:2000, method:'Masrvi'}] },
-      14: { status:'booked',  client:'سلمى و عادل',  type:'حفل زفاف', phone:'0612345678', total:15000, paid:15000,
-            payments:[{date:'2026-06-15', amount:7500, method:'نقدا'},{date:'2026-08-02', amount:7500, method:'نقدا'}] },
-      19: { status:'pending', client:'فاطمة الزهراء', type:'عيد ميلاد', phone:'0699456712', total:3500, paid:1000,
-            payments:[{date:'2026-08-01', amount:1000, method:'Sedad'}] },
-      22: { status:'booked',  client:'نادية و كريم', type:'حفل زفاف', phone:'0644901123', total:13500, paid:13500,
-            payments:[{date:'2026-07-05', amount:6750, method:'Bankily'},{date:'2026-08-03', amount:6750, method:'نقدا'}] },
-      27: { status:'pending', client:'ليلى بوزيد',   type:'حناء',      phone:'0655223344', total:4000, paid:1500,
-            payments:[{date:'2026-08-04', amount:1500, method:'نقدا'}] },
-    },
-    8: {
-      2:  { status:'pending', client:'زينب و محمد', type:'حفل زفاف', phone:'0688776655', total:16000, paid:5000,
-            payments:[{date:'2026-08-20', amount:5000, method:'Bankily'}] },
-      9:  { status:'booked', client:'سارة أحمد', type:'عيد ميلاد', phone:'0644223311', total:2500, paid:2500,
-            payments:[{date:'2026-09-01', amount:2500, method:'نقدا'}] },
-      17: { status:'pending', client:'إيمان و طارق', type:'خطوبة', phone:'0699887766', total:7000, paid:3000,
-            payments:[{date:'2026-08-28', amount:3000, method:'Sedad'}] },
-    },
-  };
-
-  const daysEl = document.getElementById('days');
-  const calMonthTitle = document.getElementById('calMonthTitle');
-  let selectedDay = null;
-  let selectedMonthKey = currentMonth;
-
-  function renderCalendar(){
-    const firstDay = new Date(year, currentMonth, 1).getDay();
-    const daysInMonth = new Date(year, currentMonth + 1, 0).getDate();
-    const monthBookings = bookingsByMonth[currentMonth] || {};
-
-    calMonthTitle.textContent = `${monthNames[currentMonth]} ${year}`;
-    daysEl.innerHTML = '';
-
-    for(let i=0;i<firstDay;i++) daysEl.insertAdjacentHTML('beforeend', `<div class="day empty"></div>`);
-    for(let d=1; d<=daysInMonth; d++){
-      const b = monthBookings[d];
-      const classes = ['day'];
-      if(b) classes.push(b.status);
-      if(d === today && currentMonth === 7) classes.push('today');
-      daysEl.insertAdjacentHTML('beforeend', `<div class="${classes.join(' ')}" data-day="${d}">${d}</div>`);
-    }
-
-    updateHomeCards();
-  }
-
-  function updateHomeCards(){
-    const entries = Object.values(bookingsByMonth[currentMonth] || {});
-    const revenue = entries.reduce((sum, b) => sum + b.paid, 0);
-    const notFullyPaid = entries.filter(b => b.status === 'pending').length;
-
-    document.getElementById('homeRevenueValue').textContent = fmtM(revenue) + ' اوقية';
-    document.getElementById('homeRevenueSub').textContent = `من ${entries.length} حجوزات`;
-    document.getElementById('homeBookingsValue').textContent = entries.length;
-    document.getElementById('homeBookingsSub').textContent = `${notFullyPaid} غير مكتملة الدفع`;
-  }
-
-  document.getElementById('prevMonth').addEventListener('click', () => {
-    currentMonth = Math.max(0, currentMonth - 1);
-    renderCalendar();
-  });
-  document.getElementById('nextMonth').addEventListener('click', () => {
-    currentMonth = Math.min(11, currentMonth + 1);
-    renderCalendar();
-  });
-
-  renderCalendar();
-
-  function formatPhone(p){ return p.replace(/(\d{2})(?=\d)/g, '$1 ').trim(); }
-
-  // Compact number formatting for big dashboard totals — floors (never rounds up),
-  // so a figure never looks bigger than it actually is. Same approach as StadBook.
-  // Individual receipts/transactions stay as exact full numbers on purpose.
-  // Compact number formatting — matches StadBook exactly: only kicks in at 1,000,000+.
-  // Anything below shows as a normal full number. Floors (never rounds up), comma as decimal separator.
-  function fmtM(n){
-    if(n < 1000000) return n.toLocaleString('en-US');
-    const m = Math.floor(n / 1000000);
-    const d = Math.floor((n % 1000000) / 100000);
-    return d > 0 ? `${m},${d}M` : `${m}M`;
-  }
-  function formatDate(iso){
-    const d = new Date(iso + 'T00:00:00');
-    return `${d.getDate()} ${monthNames[d.getMonth()] || d.getMonth()+1}`;
-  }
-
-  /* ---------- Day details sheet ---------- */
-  const daySheetOverlay = document.getElementById('daySheetOverlay');
-  const daySheetBody = document.getElementById('daySheetBody');
-  const dsTitleHead = document.getElementById('dsTitleHead');
-  const closeDaySheet = document.getElementById('closeDaySheet');
-
-  function openDaySheet(day, monthKey = currentMonth){
-    selectedDay = day;
-    selectedMonthKey = monthKey;
-    const b = bookingsByMonth[monthKey][day];
-    const dateLabel = `${day} ${monthNames[monthKey]} ${year}`;
-
-    if(!b){
-      dsTitleHead.textContent = dateLabel;
-      daySheetBody.innerHTML = `
-        <span class="badge free">متاح</span>
-        <p style="font-size:.85rem; color:var(--ink-muted); line-height:1.8; margin-bottom:18px;">
-          لا يوجد حجز في هذا التاريخ حاليًا.
-        </p>
-        <button class="btn-primary" id="dsAddBookingBtn" style="width:100%;">+ إضافة حجز لهذا التاريخ</button>
-      `;
-      daySheetOverlay.classList.add('open');
-      return;
-    }
-
-    const pct = Math.round((b.paid / b.total) * 100);
-    const statusLabel = 'محجوز';
-    const remaining = b.total - b.paid;
-    const sortedPayments = [...b.payments].sort((a,c) => a.date.localeCompare(c.date));
-
-    dsTitleHead.textContent = b.client;
-    daySheetBody.innerHTML = `
-      <div class="ds-date">${dateLabel}</div>
-      <span class="badge ${b.status}">${statusLabel}</span>
-      <div class="info-row"><span>الهاتف</span><span>${formatPhone(b.phone)}</span></div>
-      <div class="info-row"><span>المبلغ الإجمالي</span><span>${b.total.toLocaleString('en-US')} اوقية</span></div>
-      <div class="info-row"><span>المدفوع</span><span>${b.paid.toLocaleString('en-US')} اوقية</span></div>
-      <div class="deposit-bar"><div class="deposit-fill" style="width:${pct}%"></div></div>
-      <div class="deposit-caption"><span>${pct}% مدفوع</span><span>${remaining.toLocaleString('en-US')} اوقية متبقي</span></div>
-
-      <div class="ds-section-title">سجل الدفعات</div>
-      <div class="payment-history">
-        ${sortedPayments.map(p => `
-          <div class="payment-row">
-            <span class="p-date">${formatDate(p.date)} · ${p.method || 'نقدا'}</span>
-            <span style="display:flex; align-items:center; gap:10px;">
-              <span class="p-amount">${p.amount.toLocaleString('en-US')} اوقية</span>
-              <button class="receipt-icon-btn" data-payment-index="${b.payments.indexOf(p)}" aria-label="طباعة الإيصال">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
-              </button>
-            </span>
-          </div>
-        `).join('')}
-      </div>
-
-      ${remaining > 0 ? `<button class="btn-primary" id="dsRecordPaymentBtn" style="width:100%; margin-top:16px;">+ تسجيل دفعة</button>` : ''}
-      <button class="btn-secondary" id="dsShareClientBtn" style="width:100%; margin-top:10px;">مشاركة مع الزبون</button>
-      <div style="display:flex; gap:10px; margin-top:10px;">
-        <button class="btn-secondary" id="dsEditBtn" style="flex:1;">تعديل التفاصيل</button>
-        <button class="btn-secondary" id="dsCancelBtn" style="flex:1; background:rgba(232,89,143,0.18); color:#FBD9E6;">إلغاء الحجز</button>
-      </div>
-      <div id="dsCancelConfirm" style="display:none; margin-top:10px; background:rgba(232,89,143,0.14); border-radius:14px; padding:14px; text-align:center;">
-        <div style="font-size:.82rem; color:#FBD9E6; margin-bottom:10px;">هل تريد إلغاء هذا الحجز نهائيًا؟</div>
-        <div style="display:flex; gap:10px;">
-          <button id="dsCancelConfirmYes" style="flex:1; background:var(--coral); color:#fff; border:none; border-radius:12px; padding:10px; font-family:'Tajawal',sans-serif; font-weight:800; font-size:.84rem; cursor:pointer;">نعم، ألغِ الحجز</button>
-          <button id="dsCancelConfirmNo" style="flex:1; background:rgba(255,255,255,0.14); color:#F1EEFB; border:none; border-radius:12px; padding:10px; font-family:'Tajawal',sans-serif; font-weight:700; font-size:.84rem; cursor:pointer;">تراجع</button>
-        </div>
-      </div>
-    `;
-    daySheetOverlay.classList.add('open');
-  }
-
-  function closeDaySheetFn(){ daySheetOverlay.classList.remove('open'); }
-  closeDaySheet.addEventListener('click', closeDaySheetFn);
-  daySheetOverlay.addEventListener('click', (e) => { if(e.target === daySheetOverlay) closeDaySheetFn(); });
-
-  daysEl.addEventListener('click', (e) => {
-    const cell = e.target.closest('.day:not(.empty)');
-    if(!cell) return;
-    document.querySelectorAll('.day.selected').forEach(el => el.classList.remove('selected'));
-    cell.classList.add('selected');
-    openDaySheet(parseInt(cell.dataset.day, 10));
-  });
-
-  // delegated clicks inside the day sheet body (add booking / open payment sheet)
-  daySheetBody.addEventListener('click', (e) => {
-    if(e.target.id === 'dsAddBookingBtn'){
-      closeDaySheetFn();
-      openAddBookingSheet(selectedDay);
-    }
-    if(e.target.id === 'dsRecordPaymentBtn'){
-      openRecordPaymentSheet();
-    }
-    if(e.target.id === 'dsShareClientBtn'){
-      openDailyExport(selectedDay, selectedMonthKey);
-    }
-    const receiptBtn = e.target.closest('.receipt-icon-btn');
-    if(receiptBtn){
-      openReceipt(selectedMonthKey, selectedDay, parseInt(receiptBtn.dataset.paymentIndex, 10));
-    }
-    if(e.target.id === 'dsEditBtn'){
-      openEditBookingSheet(selectedDay, selectedMonthKey);
-    }
-    if(e.target.id === 'dsCancelBtn'){
-      document.getElementById('dsCancelConfirm').style.display = 'block';
-      e.target.closest('div').style.display = 'none';
-    }
-    if(e.target.id === 'dsCancelConfirmNo'){
-      document.getElementById('dsCancelConfirm').style.display = 'none';
-      openDaySheet(selectedDay, selectedMonthKey); // re-render to restore buttons
-    }
-    if(e.target.id === 'dsCancelConfirmYes'){
-      delete bookingsByMonth[selectedMonthKey][selectedDay];
-      if(selectedMonthKey === currentMonth){
-        const cell = document.querySelector(`.day[data-day="${selectedDay}"]`);
-        if(cell){ cell.classList.remove('booked','pending'); }
-        renderAgenda();
-        updateHomeCards();
-      }
-      renderMonthCards();
-      if(currentEarningsMonthKey === selectedMonthKey && monthDetailView.style.display !== 'none'){
-        renderMonthBookings(selectedMonthKey);
-        updateEarningsCards(statsForMonth(selectedMonthKey), 'مداخيل الشهر');
-      }
-      closeDaySheetFn();
-    }
-  });
-
-  /* ---------- Monthly export (guard schedule) ---------- */
-  const monthlyExportOverlay = document.getElementById('monthlyExportOverlay');
-  const monthlyDocBody = document.getElementById('monthlyDocBody');
-
-  function renderMonthlyDoc(){
-    // scope follows whatever month is selected in the Agenda filter above
-    const scope = monthSelect.value; // 'all' or a specific month key
-    const monthKeys = scope === 'all' ? Object.keys(bookingsByMonth) : [scope];
-
-    let entries = [];
-    monthKeys.forEach(key => {
-      Object.entries(bookingsByMonth[key]).forEach(([day, b]) => {
-        entries.push({ day: parseInt(day, 10), monthKey: key, ...b });
-      });
-    });
-    entries.sort((a, b) => (a.monthKey - b.monthKey) || (a.day - b.day));
-
-    monthlyDocBody.innerHTML = entries.map(b => `
-      <tr>
-        <td>${b.day} ${monthNames[b.monthKey]}</td>
-        <td>${b.client}</td>
-        <td>${formatPhone(b.phone)}</td>
-        <td><span class="status-pill ${b.status}">محجوز</span></td>
-      </tr>
-    `).join('');
-
-    document.getElementById('monthlyDocTitle').textContent =
-      scope === 'all' ? 'جدول المناسبات — كل الأشهر' : `جدول المناسبات — ${monthNames[scope]} ${year}`;
-
-    document.getElementById('monthlyDocDate').textContent =
-      'تم الإصدار بتاريخ ' + new Date().toLocaleDateString('en-GB');
-  }
-
-  function openMonthlyExport(){
-    renderMonthlyDoc();
-    monthlyExportOverlay.classList.add('open');
-  }
-  document.getElementById('openMonthlyExport').addEventListener('click', openMonthlyExport);
-  document.getElementById('closeMonthlyExport').addEventListener('click', () => monthlyExportOverlay.classList.remove('open'));
-  document.getElementById('printMonthlyExport').addEventListener('click', () => window.print());
-
-  /* ---------- Daily export (client slip) ---------- */
-  const dailyExportOverlay = document.getElementById('dailyExportOverlay');
-  const dailySlipBody = document.getElementById('dailySlipBody');
-  const weekdayNames = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
-
-  function openDailyExport(day, monthKey = currentMonth){
-    const b = bookingsByMonth[monthKey][day];
-    if(!b) return;
-    const dateObj = new Date(year, monthKey, day);
-    const statusLabel = 'محجوز';
-
-    dailySlipBody.innerHTML = `
-      <div class="authorize">تصريح دخول لليوم</div>
-      <div class="date-big">${day} ${monthNames[monthKey]} ${year}</div>
-      <div class="weekday">${weekdayNames[dateObj.getDay()]}</div>
-      <div class="slip-row"><span>الزبون</span><span>${b.client}</span></div>
-      <div class="slip-row"><span>الهاتف</span><span>${formatPhone(b.phone)}</span></div>
-      <div class="slip-row"><span>المبلغ الإجمالي</span><span>${b.total.toLocaleString('en-US')} اوقية</span></div>
-      <div class="badge-big ${b.status}">${statusLabel}</div>
-      <div class="note">يرجى إبراز هذا التصريح لحارس القاعة عند الوصول يوم المناسبة.</div>
-    `;
-    dailyExportOverlay.classList.add('open');
-  }
-  document.getElementById('closeDailyExport').addEventListener('click', () => dailyExportOverlay.classList.remove('open'));
-  document.getElementById('printDailyExport').addEventListener('click', () => window.print());
-
-  /* ---------- Payment receipt ---------- */
-  const receiptOverlay = document.getElementById('receiptOverlay');
-  const receiptBody = document.getElementById('receiptBody');
-
-  function openReceipt(monthKey, day, paymentIndex){
-    const b = bookingsByMonth[monthKey][day];
-    if(!b) return;
-    const p = b.payments[paymentIndex];
-    if(!p) return;
-
-    const remaining = b.total - b.paid;
-    const isFull = remaining <= 0;
-
-    document.getElementById('receiptDate').textContent = `${formatDate(p.date)} ${year}`;
-
-    receiptBody.innerHTML = `
-      <div class="slip-row"><span>الزبون</span><span>${b.client}</span></div>
-      <div class="slip-row"><span>الهاتف</span><span>${formatPhone(b.phone)}</span></div>
-      <div class="slip-row"><span>تاريخ المناسبة</span><span>${day} ${monthNames[monthKey]} ${year}</span></div>
-      <div class="slip-row"><span>طريقة الدفع</span><span>${p.method || 'نقدا'}</span></div>
-      <div class="slip-row"><span>المبلغ المدفوع (هذه الدفعة)</span><span>${p.amount.toLocaleString('en-US')} اوقية</span></div>
-      <div class="slip-row"><span>المبلغ الإجمالي للحجز</span><span>${b.total.toLocaleString('en-US')} اوقية</span></div>
-      <div class="slip-row"><span>مجموع المدفوع لحد الآن</span><span>${b.paid.toLocaleString('en-US')} اوقية</span></div>
-      <div class="receipt-highlight ${isFull ? 'paid-full' : 'paid-partial'}">
-        <div class="rh-label">${isFull ? 'تم سداد المبلغ بالكامل' : 'المبلغ المتبقي'}</div>
-        ${isFull ? '' : `<div class="rh-value">${remaining.toLocaleString('en-US')} اوقية</div>`}
-      </div>
-    `;
-    receiptOverlay.classList.add('open');
-  }
-
-  document.getElementById('closeReceipt').addEventListener('click', () => receiptOverlay.classList.remove('open'));
-  document.getElementById('printReceipt').addEventListener('click', () => window.print());
-
-  /* ---------- Record payment sheet ---------- */
-  const paymentOverlay = document.getElementById('recordPaymentOverlay');
-  const closeRecordPayment = document.getElementById('closeRecordPayment');
-  const cancelRecordPayment = document.getElementById('cancelRecordPayment');
-  const recordPaymentForm = document.getElementById('recordPaymentForm');
-  const paymentInput = document.getElementById('paymentInput');
-  const paymentDateInput = document.getElementById('paymentDateInput');
-  const remainingAmountEl = document.getElementById('remainingAmount');
-  const payFullBtn = document.getElementById('payFullBtn');
-
-  function openRecordPaymentSheet(){
-    const b = bookingsByMonth[selectedMonthKey][selectedDay];
-    if(!b) return;
-    const remaining = b.total - b.paid;
-    remainingAmountEl.textContent = remaining.toLocaleString('en-US') + ' اوقية';
-    paymentInput.value = '';
-    paymentInput.max = remaining;
-    paymentDateInput.value = new Date().toISOString().slice(0,10);
-    paymentOverlay.classList.add('open');
-  }
-  function closeRecordPaymentSheet(){ paymentOverlay.classList.remove('open'); }
-
-  closeRecordPayment.addEventListener('click', closeRecordPaymentSheet);
-  cancelRecordPayment.addEventListener('click', closeRecordPaymentSheet);
-  paymentOverlay.addEventListener('click', (e) => { if(e.target === paymentOverlay) closeRecordPaymentSheet(); });
-
-  payFullBtn.addEventListener('click', () => {
-    const b = bookingsByMonth[selectedMonthKey][selectedDay];
-    paymentInput.value = b.total - b.paid;
-  });
-
-  recordPaymentForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const b = bookingsByMonth[selectedMonthKey][selectedDay];
-    const remaining = b.total - b.paid;
-    const amount = Math.min(parseInt(paymentInput.value, 10) || 0, remaining);
-    if(amount <= 0) return;
-
-    b.payments.push({ date: paymentDateInput.value || new Date().toISOString().slice(0,10), amount, method: document.getElementById('paymentMethodInput').value });
-    b.paid += amount;
-    if(b.paid >= b.total) b.status = 'booked';
-
-    if(selectedMonthKey === currentMonth){
-      const cell = document.querySelector(`.day[data-day="${selectedDay}"]`);
-      if(cell){ cell.classList.remove('booked','pending'); cell.classList.add(b.status); }
-      renderAgenda();
-      updateHomeCards();
-    }
-
-    closeRecordPaymentSheet();
-    openDaySheet(selectedDay, selectedMonthKey); // re-render day sheet with updated history
-    renderMonthCards();
-    if(currentEarningsMonthKey === selectedMonthKey && monthDetailView.style.display !== 'none'){
-      openMonthDetail(selectedMonthKey);
-    }
-    openReceipt(selectedMonthKey, selectedDay, b.payments.length - 1);
-  });
-
-  /* ---------- Add booking sheet ---------- */
-  const addBookingOverlay = document.getElementById('addBookingOverlay');
-  const closeAddBooking = document.getElementById('closeAddBooking');
-  const cancelAddBooking = document.getElementById('cancelAddBooking');
-  const addBookingForm = document.getElementById('addBookingForm');
-
-  function openAddBookingSheet(day){
-    addBookingForm.reset();
-    if(day){
-      const iso = `${year}-${String(currentMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
-      document.getElementById('fDate').value = iso;
-    }
-    addBookingOverlay.classList.add('open');
-  }
-  function closeAddBookingSheet(){ addBookingOverlay.classList.remove('open'); }
-  closeAddBooking.addEventListener('click', closeAddBookingSheet);
-  cancelAddBooking.addEventListener('click', closeAddBookingSheet);
-  addBookingOverlay.addEventListener('click', (e) => { if(e.target === addBookingOverlay) closeAddBookingSheet(); });
-
-  addBookingForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const dateVal = document.getElementById('fDate').value;
-    const day = parseInt(dateVal.split('-')[2], 10);
-    const total = parseInt(document.getElementById('fTotal').value, 10) || 0;
-    const paid = Math.min(parseInt(document.getElementById('fPaid').value, 10) || 0, total);
-
-    if(!bookingsByMonth[currentMonth]) bookingsByMonth[currentMonth] = {};
-    bookingsByMonth[currentMonth][day] = {
-      status: paid >= total && total > 0 ? 'booked' : 'pending',
-      client: document.getElementById('fClient').value,
-      phone: document.getElementById('fPhone').value.replace(/\s/g, ''),
-      total, paid,
-      payments: paid > 0 ? [{ date: new Date().toISOString().slice(0,10), amount: paid, method: document.getElementById('fPaymentMethod').value }] : []
-    };
-
-    const cell = document.querySelector(`.day[data-day="${day}"]`);
-    if(cell){ cell.classList.remove('booked','pending'); cell.classList.add(bookingsByMonth[currentMonth][day].status); }
-
-    closeAddBookingSheet();
-    renderAgenda();
-    renderMonthCards();
-    updateHomeCards();
-    if(paid > 0){
-      openReceipt(currentMonth, day, 0);
-    }
-  });
-
-  /* ---------- Edit booking sheet ---------- */
-  const editBookingOverlay = document.getElementById('editBookingOverlay');
-  const closeEditBooking = document.getElementById('closeEditBooking');
-  const cancelEditBooking = document.getElementById('cancelEditBooking');
-  const editBookingForm = document.getElementById('editBookingForm');
-  let editingDay = null, editingMonthKey = null;
-
-  function openEditBookingSheet(day, monthKey){
-    const b = bookingsByMonth[monthKey][day];
-    if(!b) return;
-    editingDay = day;
-    editingMonthKey = monthKey;
-    document.getElementById('eClient').value = b.client;
-    document.getElementById('ePhone').value = formatPhone(b.phone);
-    document.getElementById('eTotal').value = b.total;
-    closeDaySheetFn();
-    editBookingOverlay.classList.add('open');
-  }
-  function closeEditBookingSheet(){
-    editBookingOverlay.classList.remove('open');
-    openDaySheet(editingDay, editingMonthKey);
-  }
-  closeEditBooking.addEventListener('click', closeEditBookingSheet);
-  cancelEditBooking.addEventListener('click', closeEditBookingSheet);
-  editBookingOverlay.addEventListener('click', (e) => { if(e.target === editBookingOverlay) closeEditBookingSheet(); });
-
-  editBookingForm.addEventListener('submit', (e) => {
-    e.preventDefault();
-    const b = bookingsByMonth[editingMonthKey][editingDay];
-    b.client = document.getElementById('eClient').value;
-    b.phone = document.getElementById('ePhone').value.replace(/\s/g, '');
-    b.total = parseInt(document.getElementById('eTotal').value, 10) || b.total;
-    b.status = b.paid >= b.total && b.total > 0 ? 'booked' : 'pending';
-
-    if(editingMonthKey === currentMonth){
-      const cell = document.querySelector(`.day[data-day="${editingDay}"]`);
-      if(cell){ cell.classList.remove('booked','pending'); cell.classList.add(b.status); }
-      renderAgenda();
-      updateHomeCards();
-    }
-    renderMonthCards();
-    if(currentEarningsMonthKey === editingMonthKey && monthDetailView.style.display !== 'none'){
-      renderMonthBookings(editingMonthKey);
-      updateEarningsCards(statsForMonth(editingMonthKey), 'مداخيل الشهر');
-    }
-
-    closeEditBookingSheet();
-  });
-
-  /* ---------- Page navigation ---------- */
-  const navButtons = document.querySelectorAll('.bottom-nav button');
-  const pages = document.querySelectorAll('.page');
-  navButtons.forEach(btn => {
-    btn.addEventListener('click', () => {
-      navButtons.forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      const target = btn.dataset.page;
-      pages.forEach(p => p.classList.toggle('active', p.id === 'page-' + target));
-    });
-  });
-
-  /* ---------- Agenda: search + month + status filters ---------- */
-  const agendaListEl = document.getElementById('agendaList');
-  const agendaCountEl = document.getElementById('agendaCount');
-  const phoneSearch = document.getElementById('phoneSearch');
-  const monthSelect = document.getElementById('monthSelect');
-
-  // populate month dropdown from every month present in the data
-  Object.keys(bookingsByMonth).sort((a, b) => a - b).forEach(key => {
-    const opt = document.createElement('option');
-    opt.value = key;
-    opt.textContent = `${monthNames[key]} ${year}`;
-    if(parseInt(key, 10) === currentMonth) opt.selected = true;
-    monthSelect.appendChild(opt);
-  });
-
-  function renderAgenda(){
-    const statusFilter = document.querySelector('#statusChips .chip.active')?.dataset.filter || 'all';
-    const monthFilter = monthSelect.value; // 'all' or a specific month key
-    const phoneQuery = phoneSearch.value.replace(/\s/g, '');
-
-    const monthKeys = monthFilter === 'all' ? Object.keys(bookingsByMonth) : [monthFilter];
-
-    let entries = [];
-    monthKeys.forEach(key => {
-      Object.entries(bookingsByMonth[key]).forEach(([day, b]) => {
-        entries.push({ day: parseInt(day, 10), monthKey: key, ...b });
-      });
-    });
-
-    entries = entries
-      .sort((a, b) => (a.monthKey - b.monthKey) || (a.day - b.day))
-      .filter(b => statusFilter === 'all' || b.status === statusFilter)
-      .filter(b => !phoneQuery || b.phone.includes(phoneQuery));
-
-    agendaCountEl.textContent = `${entries.length} حجوزات`;
-
-    agendaListEl.innerHTML = entries.map(b => `
-      <div class="agenda-item ${b.status}" data-day="${b.day}" data-month="${b.monthKey}">
-        <div class="agenda-date">
-          <div class="num">${b.day}</div>
-          <div class="mon">${monthNames[b.monthKey]}</div>
-        </div>
-        <div class="agenda-info">
-          <div class="name">${b.client}</div>
-          <div class="meta">${formatPhone(b.phone)}</div>
-        </div>
-        <div class="agenda-status">محجوز</div>
-      </div>
-    `).join('') || `<div class="empty-state">لا توجد نتائج مطابقة</div>`;
-  }
-
-  agendaListEl.addEventListener('click', (e) => {
-    const item = e.target.closest('.agenda-item');
-    if(!item) return;
-    openDaySheet(parseInt(item.dataset.day, 10), item.dataset.month);
-  });
-
-  document.querySelectorAll('#statusChips .chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      document.querySelectorAll('#statusChips .chip').forEach(c => c.classList.remove('active'));
-      chip.classList.add('active');
-      renderAgenda();
-    });
-  });
-  phoneSearch.addEventListener('input', renderAgenda);
-  monthSelect.addEventListener('change', renderAgenda);
-
-  renderAgenda();
-
-  /* ---------- Earnings: month cards + drill-down ---------- */
-  const monthCardsList = document.getElementById('monthCardsList');
-  const monthCardsView = document.getElementById('monthCardsView');
-  const monthDetailView = document.getElementById('monthDetailView');
-  const monthBookingsList = document.getElementById('monthBookingsList');
-  const earningsCardLabel = document.getElementById('earningsCardLabel');
-  const earningsTotalEl = document.getElementById('earningsTotal');
-  const earningsCountEl = document.getElementById('earningsCount');
-  const earningsRemainingEl = document.getElementById('earningsRemaining');
-  let currentEarningsMonthKey = null;
-
-  function statsForMonth(monthKey){
-    const entries = Object.values(bookingsByMonth[monthKey] || {});
-    return {
-      total: entries.reduce((sum, b) => sum + b.paid, 0),
-      remaining: entries.filter(b => b.status === 'pending').reduce((sum, b) => sum + (b.total - b.paid), 0),
-      count: entries.length
-    };
-  }
-
-  function statsForAllMonths(){
-    return Object.keys(bookingsByMonth).reduce((acc, key) => {
-      const s = statsForMonth(key);
-      acc.total += s.total; acc.remaining += s.remaining; acc.count += s.count;
-      return acc;
-    }, { total: 0, remaining: 0, count: 0 });
-  }
-
-  function updateEarningsCards(stats, label){
-    earningsCardLabel.textContent = label;
-    earningsTotalEl.textContent = fmtM(stats.total) + ' اوقية';
-    earningsCountEl.textContent = stats.count + ' حجوزات';
-    earningsRemainingEl.textContent = fmtM(stats.remaining) + ' اوقية';
-  }
-
-  function renderMonthCards(){
-    // sorted chronologically across every month present in the data
-    const keys = Object.keys(bookingsByMonth).sort((a, b) => a - b);
-    monthCardsList.innerHTML = keys.map(key => {
-      const s = statsForMonth(key);
-      return `
-        <div class="month-card" data-month-key="${key}">
-          <div>
-            <div class="mc-name">${monthNames[key]} ${year}</div>
-            <div class="mc-sub">${s.count} حجوزات</div>
-          </div>
-          <div style="display:flex; align-items:center; gap:10px;">
-            <div class="mc-total">${fmtM(s.total)} اوقية</div>
-            <span class="mc-arrow">‹</span>
-          </div>
-        </div>
-      `;
-    }).join('') || `<div class="empty-state">لا توجد بيانات بعد</div>`;
-
-    // top cards default to the grand total across all months
-    updateEarningsCards(statsForAllMonths(), 'إجمالي المداخيل');
-  }
-
-  monthCardsList.addEventListener('click', (e) => {
-    const card = e.target.closest('.month-card');
-    if(!card) return;
-    openMonthDetail(card.dataset.monthKey);
-  });
-
-  function openMonthDetail(monthKey){
-    currentEarningsMonthKey = monthKey;
-    document.getElementById('monthDetailTitle').textContent = `${monthNames[monthKey]} ${year}`;
-    monthCardsView.style.display = 'none';
-    monthDetailView.style.display = 'block';
-    updateEarningsCards(statsForMonth(monthKey), 'مداخيل الشهر');
-    renderMonthBookings(monthKey);
-  }
-
-  document.getElementById('backToMonths').addEventListener('click', () => {
-    monthDetailView.style.display = 'none';
-    monthCardsView.style.display = 'block';
-    updateEarningsCards(statsForAllMonths(), 'إجمالي المداخيل');
-  });
-
-  function renderMonthBookings(monthKey){
-    const entries = Object.entries(bookingsByMonth[monthKey])
-      .map(([day, b]) => ({ day: parseInt(day, 10), ...b }))
-      .sort((a, b) => a.day - b.day);
-
-    monthBookingsList.innerHTML = entries.map(b => `
-      <div class="agenda-item ${b.status}" data-day="${b.day}">
-        <div class="agenda-date">
-          <div class="num">${b.day}</div>
-          <div class="mon">${monthNames[monthKey]}</div>
-        </div>
-        <div class="agenda-info">
-          <div class="name">${b.client}</div>
-          <div class="meta">${formatPhone(b.phone)} · ${b.paid.toLocaleString('en-US')} / ${b.total.toLocaleString('en-US')} اوقية</div>
-        </div>
-        <div class="agenda-status">محجوز</div>
-      </div>
-    `).join('') || `<div class="empty-state">لا توجد حجوزات هذا الشهر</div>`;
-  }
-
-  monthBookingsList.addEventListener('click', (e) => {
-    const item = e.target.closest('.agenda-item');
-    if(!item) return;
-    openDaySheet(parseInt(item.dataset.day, 10), currentEarningsMonthKey);
-  });
-
-  renderMonthCards();
-
-  /* ---------- Settings interactions ---------- */
-  document.querySelectorAll('.settings-row .toggle').forEach(t => {
-    t.addEventListener('click', () => t.classList.toggle('on'));
-  });
-  document.querySelectorAll('.lang-pills button').forEach(btn => {
-    btn.addEventListener('click', () => {
-      btn.parentElement.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-    });
-  });
-
-  document.getElementById('sendResetLinkBtn').addEventListener('click', () => {
-    // in the real app: auth.sendPasswordResetEmail(auth.currentUser.email)
-    alert('تم إرسال بريد إعادة التعيين! تحقق من البريد العشوائي.');
-  });
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+  db.enablePersistence({synchronizeTabs:true}).catch(function(){});
 </script>
 
+<script type="text/babel">
+const { useState, useEffect, useCallback, useMemo } = React;
+
+// ── CONSTANTS ────────────────────────────────────────────────────────────
+const ADMIN_EMAIL_HINT = ""; // admin login lives in admin.html, not here
+const MONTH_NAMES = {0:'يناير',1:'فبراير',2:'مارس',3:'أبريل',4:'مايو',5:'يونيو',6:'يوليو',7:'أغسطس',8:'سبتمبر',9:'أكتوبر',10:'نوفمبر',11:'ديسمبر'};
+const DAY_NAMES = ['أحد','اثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'];
+
+function toKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function fmtM(n){
+  // matches StadBook exactly: only compacts at 1,000,000+, floors, comma as decimal separator
+  if(n < 1000000) return n.toLocaleString('en-US');
+  const m = Math.floor(n / 1000000);
+  const d = Math.floor((n % 1000000) / 100000);
+  return d > 0 ? `${m},${d}M` : `${m}M`;
+}
+function formatPhone(p){ return (p||'').replace(/(\d{2})(?=\d)/g, '$1 ').trim(); }
+function getMonthGrid(y, m){
+  const first = new Date(y, m, 1), cells = [];
+  for(let i=0; i<first.getDay(); i++) cells.push(null);
+  for(let d=1; d<=new Date(y, m+1, 0).getDate(); d++) cells.push(new Date(y, m, d));
+  while(cells.length % 7 !== 0) cells.push(null);
+  return cells;
+}
+
+// ── LOGIN SCREEN TRANSLATIONS (AR/FR/EN) ────────────────────────────────
+const LOGIN_T = {
+  ar: {
+    brand:'قاعتي', tagline:'منصة لتسيير قاعات الأفراح والمناسبات',
+    guideStep1:'١. أنشئ/ي حسابك', guideStep2:'٢. تواصل/ي معنا عبر واتساب', guideStep3:'٣. فعّل/ي حسابك وابدأ/ي الحجز!',
+    contactLabel:'📞 تحتاج/ين إلى الوصول؟ تواصل/ي معنا!',
+    tabLogin:'تسجيل الدخول', tabSignup:'حساب جديد',
+    fieldPhone:'رقم الهاتف', fieldPassword:'كلمة المرور', fieldHallName:'اسم القاعة',
+    fieldEmail:'البريد الإلكتروني', fieldPasswordConfirm:'تأكيد كلمة المرور',
+    btnLogin:'تسجيل الدخول', btnSignup:'إنشاء الحساب', forgotLink:'نسيت كلمة المرور؟',
+    pendingTitle:'الحساب في انتظار التفعيل',
+    pendingDesc:'تم إنشاء حسابك. سيتم تفعيله خلال 24 ساعة بعد تأكيد الدفع.',
+    pendingContact:'تواصل معنا عبر واتساب لتفعيل اشتراكك',
+    backToLogin:'→ العودة لتسجيل الدخول',
+    forgotHeading:'نسيت كلمة المرور؟',
+    forgotDesc:'تواصل معنا على واتساب وسنقوم بإعادة تعيين كلمة مرورك.',
+    errorEmail:'البريد الإلكتروني غير صالح.', errorPassword:'كلمة المرور يجب أن تكون 6 أحرف على الأقل.',
+    errorWrong:'البريد الإلكتروني أو كلمة المرور غير صحيحة.', errorExists:'هذا البريد الإلكتروني مسجل بالفعل.',
+    errorGeneral:'حدث خطأ. حاول مجددًا.', errorName:'يرجى إدخال اسم القاعة.', errorMatch:'كلمتا المرور غير متطابقتين.',
+    loading:'جارٍ التحميل...',
+  },
+  fr: {
+    brand:'Qaaty', tagline:'Plateforme de gestion de salles de fête',
+    guideStep1:'1. Créez votre compte', guideStep2:'2. Contactez-nous sur WhatsApp', guideStep3:'3. Activez et commencez à réserver !',
+    contactLabel:"📞 Besoin d'accès ? Contactez-nous !",
+    tabLogin:'Connexion', tabSignup:'Créer un compte',
+    fieldPhone:'Numéro de téléphone', fieldPassword:'Mot de passe', fieldHallName:'Nom de la salle',
+    fieldEmail:'Email', fieldPasswordConfirm:'Confirmer le mot de passe',
+    btnLogin:'Se connecter', btnSignup:'Créer le compte', forgotLink:'Mot de passe oublié ?',
+    pendingTitle:"Compte en attente d'activation",
+    pendingDesc:'Votre compte a été créé. Il sera activé sous 24h après confirmation du paiement.',
+    pendingContact:'Contactez-nous sur WhatsApp pour activer votre abonnement',
+    backToLogin:'→ Retour à la connexion',
+    forgotHeading:'Mot de passe oublié ?',
+    forgotDesc:'Contactez-nous sur WhatsApp et nous réinitialiserons votre mot de passe.',
+    errorEmail:'Email invalide.', errorPassword:'Le mot de passe doit contenir au moins 6 caractères.',
+    errorWrong:'Email ou mot de passe incorrect.', errorExists:'Cet email est déjà utilisé.',
+    errorGeneral:"Une erreur s'est produite. Réessayez.", errorName:'Veuillez entrer le nom de la salle.', errorMatch:'Les mots de passe ne correspondent pas.',
+    loading:'Chargement...',
+  },
+  en: {
+    brand:'Qaaty', tagline:'A platform for managing wedding halls',
+    guideStep1:'1. Create your account', guideStep2:'2. Contact us on WhatsApp', guideStep3:'3. Get activated & start booking!',
+    contactLabel:'📞 Need access? Contact us!',
+    tabLogin:'Sign In', tabSignup:'Sign Up',
+    fieldPhone:'Phone number', fieldPassword:'Password', fieldHallName:'Hall name',
+    fieldEmail:'Email', fieldPasswordConfirm:'Confirm password',
+    btnLogin:'Sign In', btnSignup:'Create Account', forgotLink:'Forgot password?',
+    pendingTitle:'Account Pending Activation',
+    pendingDesc:'Your account was created. It will be activated within 24h after payment confirmation.',
+    pendingContact:'Contact us on WhatsApp to activate your subscription',
+    backToLogin:'→ Back to login',
+    forgotHeading:'Forgot password?',
+    forgotDesc:'Contact us on WhatsApp and we will reset your password for you.',
+    errorEmail:'Invalid email.', errorPassword:'Password must be at least 6 characters.',
+    errorWrong:'Incorrect email or password.', errorExists:'This email is already registered.',
+    errorGeneral:'Something went wrong. Try again.', errorName:'Please enter your hall name.', errorMatch:'Passwords do not match.',
+    loading:'Loading...',
+  },
+};
+
+
+// ── AUTH SCREEN ──────────────────────────────────────────────────────────
+function AuthScreen(){
+  const [lang, setLang] = useState('ar');
+  const [panel, setPanel] = useState('auth'); // auth | pending | forgot
+  const [mode, setMode] = useState('login'); // login | signup
+  const [loginPhone, setLoginPhone] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  const [signupHallName, setSignupHallName] = useState('');
+  const [signupPhone, setSignupPhone] = useState('');
+  const [signupEmail, setSignupEmail] = useState('');
+  const [signupPassword, setSignupPassword] = useState('');
+  const [signupPasswordConfirm, setSignupPasswordConfirm] = useState('');
+  const [loginEmailForAuth, setLoginEmailForAuth] = useState(''); // login uses phone → we look up the matching email
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [whatsapp, setWhatsapp] = useState('+222 XX XX XX XX');
+  const t = LOGIN_T[lang];
+
+  useEffect(() => {
+    db.collection('settings').doc('contact').get().then(snap => {
+      if(snap.exists && snap.data().whatsapp) setWhatsapp(snap.data().whatsapp);
+    }).catch(()=>{});
+  }, []);
+
+  const handleLogin = async () => {
+    setError('');
+    if(!loginPhone.trim() || !loginPassword) return setError(t.errorGeneral);
+    setLoading(true);
+    try {
+      // Phone is the identifier users type, but Firebase Auth needs an email under the hood.
+      // We look up the account's email by phone number in Firestore first.
+      const q = await db.collection('users').where('phone', '==', loginPhone.trim()).limit(1).get();
+      if(q.empty){ setError(t.errorWrong); setLoading(false); return; }
+      const userEmail = q.docs[0].data().email;
+      await auth.signInWithEmailAndPassword(userEmail, loginPassword);
+    } catch(e) {
+      setError(t.errorWrong);
+    }
+    setLoading(false);
+  };
+
+  const handleSignup = async () => {
+    setError('');
+    if(!signupHallName.trim()) return setError(t.errorName);
+    if(!signupPhone.trim()) return setError(t.errorGeneral);
+    if(!signupEmail.includes('@')) return setError(t.errorEmail);
+    if(signupPassword.length < 6) return setError(t.errorPassword);
+    if(signupPassword !== signupPasswordConfirm) return setError(t.errorMatch);
+    setLoading(true);
+    try {
+      const cred = await auth.createUserWithEmailAndPassword(signupEmail.trim(), signupPassword);
+      await db.collection('users').doc(cred.user.uid).set({
+        hallName: signupHallName.trim(),
+        phone: signupPhone.trim(),
+        email: signupEmail.trim().toLowerCase(),
+        active: false,
+        createdAt: new Date().toISOString(),
+        price: 1500,
+      });
+      setPanel('pending');
+    } catch(e) {
+      if(e.code === 'auth/email-already-in-use') setError(t.errorExists);
+      else setError(t.errorGeneral);
+    }
+    setLoading(false);
+  };
+
+  const inp = { width:'100%' };
+
+  if(panel === 'pending'){
+    return (
+      <div className="login-screen">
+        <div className="login-card">
+          <div className="login-lang-switch">
+            {['ar','fr','en'].map(l => (
+              <button key={l} className={lang===l?'active':''} onClick={()=>setLang(l)}>
+                {l==='ar'?'🇲🇷 AR':l==='fr'?'🇫🇷 FR':'🇬🇧 EN'}
+              </button>
+            ))}
+          </div>
+          <div className="login-panel active">
+            <div className="login-form" style={{textAlign:'center'}}>
+              <div style={{fontSize:'2.4rem', marginBottom:6}}>⏳</div>
+              <h3 style={{fontSize:'1.05rem', fontWeight:800, color:'var(--teal-dark)', marginBottom:8}}>{t.pendingTitle}</h3>
+              <div className="login-note">{t.pendingDesc}</div>
+              <div style={{background:'var(--coral-soft)', borderRadius:16, padding:16, marginBottom:16}}>
+                <div style={{fontSize:'.76rem', color:'var(--coral)', fontWeight:700, marginBottom:4}}>{t.pendingContact}</div>
+                <div style={{fontSize:'1.05rem', fontWeight:800, color:'var(--ink)'}}>{whatsapp}</div>
+              </div>
+              <button type="button" className="btn-secondary" style={{width:'100%'}} onClick={()=>{auth.signOut();setPanel('auth');}}>{t.backToLogin}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if(panel === 'forgot'){
+    return (
+      <div className="login-screen">
+        <div className="login-card">
+          <div className="login-lang-switch">
+            {['ar','fr','en'].map(l => (
+              <button key={l} className={lang===l?'active':''} onClick={()=>setLang(l)}>
+                {l==='ar'?'🇲🇷 AR':l==='fr'?'🇫🇷 FR':'🇬🇧 EN'}
+              </button>
+            ))}
+          </div>
+          <div className="login-panel active">
+            <div className="login-form">
+              <div style={{fontSize:'1rem', fontWeight:800, color:'var(--teal-dark)', marginBottom:16}}>{t.forgotHeading}</div>
+              <div style={{background:'var(--glass-strong)', borderRadius:16, padding:20, textAlign:'center', marginBottom:16}}>
+                <div style={{fontSize:'1.8rem', marginBottom:8}}>📞</div>
+                <div className="login-note" style={{marginBottom:12}}>{t.forgotDesc}</div>
+                <div style={{fontSize:'.85rem', fontWeight:700, color:'var(--teal-deep)'}}>WhatsApp</div>
+                <div style={{fontSize:'1.15rem', fontWeight:800, color:'var(--ink)', marginTop:4}}>{whatsapp}</div>
+              </div>
+              <button type="button" className="btn-secondary" style={{width:'100%'}} onClick={()=>setPanel('auth')}>{t.backToLogin}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="login-screen">
+      <div className="login-card">
+        <div className="login-lang-switch">
+          {['ar','fr','en'].map(l => (
+            <button key={l} className={lang===l?'active':''} onClick={()=>setLang(l)}>
+              {l==='ar'?'🇲🇷 AR':l==='fr'?'🇫🇷 FR':'🇬🇧 EN'}
+            </button>
+          ))}
+        </div>
+
+        <div className="login-guide">
+          {[t.guideStep1, t.guideStep2, t.guideStep3].map((s,i) => (
+            <div className="lg-step" key={i}>
+              <div className="lg-num">{i+1}</div>
+              <div className="lg-text">{s}</div>
+            </div>
+          ))}
+        </div>
+        <div className="login-contact-card">
+          <div className="lcc-label">{t.contactLabel}</div>
+          <div className="lcc-number">WhatsApp: {whatsapp}</div>
+        </div>
+
+        <div className="login-avatar" style={{background:'none'}}>
+          <svg viewBox="0 0 512 512" width="40" height="40"><defs><linearGradient id="bgLoginApp" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#8791E8"/><stop offset="100%" stopColor="#4D48C4"/></linearGradient></defs><rect x="0" y="0" width="512" height="512" rx="115" fill="url(#bgLoginApp)"/><rect x="175" y="54" width="26" height="56" rx="13" fill="#FFFFFF"/><rect x="311" y="54" width="26" height="56" rx="13" fill="#FFFFFF"/><rect x="96" y="118" width="320" height="290" rx="32" fill="#FFFFFF"/><path d="M128,118 L384,118 A32,32 0 0 1 416,150 L416,198 L96,198 L96,150 A32,32 0 0 1 128,118 Z" fill="#4D48C4"/><circle cx="256" cy="303" r="62" fill="#E8598F"/><path d="M228,304 L248,324 L288,280" fill="none" stroke="#FFFFFF" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"/></svg>
+        </div>
+        <h1>{t.brand}</h1>
+        <p>{t.tagline}</p>
+
+        <div className="login-panel active">
+          <div className="login-tabs">
+            <button className={mode==='login'?'active':''} onClick={()=>{setMode('login');setError('');}}>{t.tabLogin}</button>
+            <button className={mode==='signup'?'active':''} onClick={()=>{setMode('signup');setError('');}}>{t.tabSignup}</button>
+          </div>
+
+          {error && <div style={{background:'var(--coral-soft)', color:'var(--coral)', fontSize:'.8rem', fontWeight:700, padding:'10px 14px', borderRadius:12, marginBottom:14}}>{error}</div>}
+
+          {mode === 'login' ? (
+            <form className="login-form" onSubmit={e=>{e.preventDefault();handleLogin();}}>
+              <div className="field">
+                <label>{t.fieldPhone}</label>
+                <input style={inp} type="tel" value={loginPhone} onChange={e=>setLoginPhone(e.target.value)} placeholder="06 XX XX XX XX" required/>
+              </div>
+              <div className="field">
+                <label>{t.fieldPassword}</label>
+                <input style={inp} type="password" value={loginPassword} onChange={e=>setLoginPassword(e.target.value)} placeholder="••••••••" required/>
+              </div>
+              <button type="submit" className="login-submit" disabled={loading}>{loading?t.loading:t.btnLogin}</button>
+            </form>
+          ) : (
+            <form className="login-form" onSubmit={e=>{e.preventDefault();handleSignup();}}>
+              <div className="field">
+                <label>{t.fieldHallName}</label>
+                <input style={inp} type="text" value={signupHallName} onChange={e=>setSignupHallName(e.target.value)} placeholder="مثال: قاعة النور" required/>
+              </div>
+              <div className="field">
+                <label>{t.fieldPhone}</label>
+                <input style={inp} type="tel" value={signupPhone} onChange={e=>setSignupPhone(e.target.value)} placeholder="06 XX XX XX XX" required/>
+              </div>
+              <div className="field">
+                <label>{t.fieldEmail}</label>
+                <input style={inp} type="email" value={signupEmail} onChange={e=>setSignupEmail(e.target.value)} placeholder="example@email.com" required/>
+              </div>
+              <div className="field">
+                <label>{t.fieldPassword}</label>
+                <input style={inp} type="password" value={signupPassword} onChange={e=>setSignupPassword(e.target.value)} placeholder="••••••••" required/>
+              </div>
+              <div className="field">
+                <label>{t.fieldPasswordConfirm}</label>
+                <input style={inp} type="password" value={signupPasswordConfirm} onChange={e=>setSignupPasswordConfirm(e.target.value)} placeholder="••••••••" required/>
+              </div>
+              <button type="submit" className="login-submit" disabled={loading}>{loading?t.loading:t.btnSignup}</button>
+            </form>
+          )}
+          {mode === 'login' && (
+            <a href="#" className="login-forgot" onClick={e=>{e.preventDefault();setPanel('forgot');}}>{t.forgotLink}</a>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+// ── DAY SHEET (bottom sheet for a single calendar day) ──────────────────
+function DaySheet({ dateKey, dayData, onClose, onAddBooking, onRecordPayment, onCancel, hallName }){
+  const [screen, setScreen] = useState(dayData ? 'view' : 'add');
+  const [name, setName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [total, setTotal] = useState('');
+  const [paidNow, setPaidNow] = useState('');
+  const [payAmount, setPayAmount] = useState('');
+  const [confirmCancel, setConfirmCancel] = useState(false);
+
+  const paid = dayData ? (dayData.payments||[]).reduce((a,p)=>a+p.amount,0) : 0;
+  const remaining = dayData ? dayData.total - paid : 0;
+
+  return (
+    <div className="sheet-overlay" onClick={onClose}>
+      <div className="sheet" onClick={e=>e.stopPropagation()}>
+        <div className="sheet-handle"></div>
+        {screen === 'view' && dayData && (
+          <>
+            <div className="sheet-title">{dayData.clientName}</div>
+            <div className="sheet-sub">📞 {formatPhone(dayData.phone)}</div>
+            <div className="ds-stats">
+              <div><span>{fmtM(dayData.total)}</span><label>الإجمالي</label></div>
+              <div><span>{fmtM(paid)}</span><label>مدفوع</label></div>
+              <div><span>{fmtM(remaining)}</span><label>متبقي</label></div>
+            </div>
+            {remaining > 0 && (
+              <button className="btn-primary" style={{width:'100%', marginBottom:10}} onClick={()=>setScreen('pay')}>+ تسجيل دفعة</button>
+            )}
+            {!confirmCancel ? (
+              <button className="btn-danger-outline" style={{width:'100%'}} onClick={()=>setConfirmCancel(true)}>إلغاء الحجز</button>
+            ) : (
+              <div style={{display:'flex', gap:8}}>
+                <button className="btn-secondary" style={{flex:1}} onClick={()=>setConfirmCancel(false)}>تراجع</button>
+                <button className="btn-danger" style={{flex:1}} onClick={()=>{onCancel(dateKey); onClose();}}>تأكيد الإلغاء</button>
+              </div>
+            )}
+          </>
+        )}
+        {screen === 'pay' && dayData && (
+          <>
+            <div className="sheet-title">تسجيل دفعة</div>
+            <div className="field">
+              <label>المبلغ (متبقي {fmtM(remaining)})</label>
+              <input type="number" value={payAmount} onChange={e=>setPayAmount(e.target.value)} placeholder="0"/>
+            </div>
+            <button className="btn-primary" style={{width:'100%'}} onClick={()=>{
+              const amt = Number(payAmount);
+              if(!amt || amt <= 0 || amt > remaining) return;
+              onRecordPayment(dateKey, amt);
+              onClose();
+            }}>تأكيد الدفع</button>
+          </>
+        )}
+        {screen === 'add' && !dayData && (
+          <>
+            <div className="sheet-title">إضافة حجز</div>
+            <div className="field"><label>اسم الزبون</label><input value={name} onChange={e=>setName(e.target.value)} /></div>
+            <div className="field"><label>رقم الهاتف</label><input type="tel" value={phone} onChange={e=>setPhone(e.target.value)} /></div>
+            <div className="field"><label>المبلغ الإجمالي</label><input type="number" value={total} onChange={e=>setTotal(e.target.value)} /></div>
+            <div className="field"><label>المدفوع الآن</label><input type="number" value={paidNow} onChange={e=>setPaidNow(e.target.value)} /></div>
+            <button className="btn-primary" style={{width:'100%'}} onClick={()=>{
+              if(!name.trim() || !phone.trim() || !total) return;
+              onAddBooking(dateKey, { clientName:name.trim(), phone:phone.trim(), total:Number(total), paidNow:Number(paidNow)||0 });
+              onClose();
+            }}>حفظ الحجز</button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── MAIN APP (after login, once account is active) ──────────────────────
+function MainApp({ uid, userDoc }){
+  const [tab, setTab] = useState('home');
+  const [bookings, setBookings] = useState({});
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [selectedDay, setSelectedDay] = useState(null);
+  const [hallName, setHallName] = useState(userDoc.hallName || 'قاعتي');
+
+  useEffect(() => {
+    const unsub = db.collection('bookings').doc(uid).onSnapshot(snap => {
+      setBookings(snap.exists ? (snap.data().data || {}) : {});
+    });
+    return unsub;
+  }, [uid]);
+
+  const saveBookings = useCallback(async (nb) => {
+    setBookings(nb);
+    await db.collection('bookings').doc(uid).set({ data: nb }, { merge: false });
+  }, [uid]);
+
+  const addBooking = (dateKey, { clientName, phone, total, paidNow }) => {
+    const nb = { ...bookings, [dateKey]: {
+      clientName, phone, total,
+      payments: paidNow > 0 ? [{ id:'p'+Date.now(), amount: paidNow, date: toKey(new Date()) }] : [],
+    }};
+    saveBookings(nb);
+  };
+  const recordPayment = (dateKey, amount) => {
+    const day = bookings[dateKey];
+    if(!day) return;
+    const nb = { ...bookings, [dateKey]: { ...day, payments: [...(day.payments||[]), { id:'p'+Date.now(), amount, date: toKey(new Date()) }] } };
+    saveBookings(nb);
+  };
+  const cancelBooking = (dateKey) => {
+    const nb = { ...bookings };
+    delete nb[dateKey];
+    saveBookings(nb);
+  };
+
+  const monthRevenue = useMemo(() => {
+    let sum = 0;
+    Object.entries(bookings).forEach(([dk, day]) => {
+      const d = new Date(dk+'T12:00:00');
+      if(d.getFullYear()===currentYear && d.getMonth()===currentMonth){
+        sum += (day.payments||[]).reduce((a,p)=>a+p.amount, 0);
+      }
+    });
+    return sum;
+  }, [bookings, currentMonth, currentYear]);
+
+  const monthBookingsCount = useMemo(() => {
+    return Object.keys(bookings).filter(dk => {
+      const d = new Date(dk+'T12:00:00');
+      return d.getFullYear()===currentYear && d.getMonth()===currentMonth;
+    }).length;
+  }, [bookings, currentMonth, currentYear]);
+
+  const grid = getMonthGrid(currentYear, currentMonth);
+  const todayKey = toKey(new Date());
+
+  const prevMonth = () => { if(currentMonth===0){setCurrentMonth(11);setCurrentYear(y=>y-1);} else setCurrentMonth(m=>m-1); };
+  const nextMonth = () => { if(currentMonth===11){setCurrentMonth(0);setCurrentYear(y=>y+1);} else setCurrentMonth(m=>m+1); };
+
+  const HomeTab = () => (
+    <div className="page">
+      <header className="hero">
+        <div className="avatar-ring">{hallName.trim().charAt(0)}</div>
+        <h1>{hallName}</h1>
+        <p>لتنظيم الأفراح والمناسبات</p>
+      </header>
+      <div className="stat-grid">
+        <div className="stat-card highlight"><span>{fmtM(monthRevenue)}</span><label>المداخيل هذا الشهر</label></div>
+        <div className="stat-card"><span>{monthBookingsCount}</span><label>حجوزات هذا الشهر</label></div>
+      </div>
+      <div className="cal-nav">
+        <button onClick={prevMonth}>‹</button>
+        <span>{MONTH_NAMES[currentMonth]} {currentYear}</span>
+        <button onClick={nextMonth}>›</button>
+      </div>
+      <div className="cal-grid">
+        {DAY_NAMES.map((d,i) => <div className="cal-dayname" key={i}>{d}</div>)}
+        {grid.map((d, i) => {
+          if(!d) return <div key={i}></div>;
+          const dk = toKey(d);
+          const booked = !!bookings[dk];
+          const isToday = dk === todayKey;
+          return (
+            <button key={i} className={`cal-cell ${booked?'booked':''} ${isToday?'today':''}`} onClick={()=>setSelectedDay(dk)}>
+              {d.getDate()}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  const SettingsTab = () => {
+    const [editing, setEditing] = useState(false);
+    const [temp, setTemp] = useState(hallName);
+    const saveName = async () => {
+      setHallName(temp);
+      await db.collection('users').doc(uid).update({ hallName: temp });
+      setEditing(false);
+    };
+    return (
+      <div className="page">
+        <div className="settings-group">
+          <h4>القاعة</h4>
+          <div className="settings-card" style={{padding:16}}>
+            {editing ? (
+              <div style={{display:'flex', gap:8}}>
+                <input value={temp} onChange={e=>setTemp(e.target.value)} style={{flex:1}}/>
+                <button className="btn-primary" onClick={saveName}>حفظ</button>
+              </div>
+            ) : (
+              <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <span style={{fontWeight:800}}>{hallName}</span>
+                <button className="btn-secondary" onClick={()=>{setTemp(hallName);setEditing(true);}}>تعديل</button>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="settings-group">
+          <h4>كلمة المرور</h4>
+          <div className="settings-card" style={{padding:16}}>
+            <button className="btn-secondary" style={{width:'100%'}} onClick={async()=>{
+              try{ await auth.sendPasswordResetEmail(auth.currentUser.email); alert('تم إرسال بريد إعادة التعيين!'); }
+              catch(e){ alert('حدث خطأ: '+e.message); }
+            }}>إرسال رابط إعادة تعيين كلمة المرور</button>
+          </div>
+        </div>
+        <div className="settings-group">
+          <h4>الحساب</h4>
+          <div className="settings-card" style={{padding:16, marginBottom:10}}>
+            <div style={{fontSize:'.85rem', color:'var(--ink-muted)'}}>{auth.currentUser?.email}</div>
+          </div>
+          <button className="btn-danger" style={{width:'100%'}} onClick={()=>auth.signOut()}>تسجيل الخروج</button>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="app-shell">
+      {tab==='home' && <HomeTab/>}
+      {tab==='settings' && <SettingsTab/>}
+      {tab!=='home' && tab!=='settings' && (
+        <div className="page" style={{textAlign:'center', paddingTop:60, color:'var(--ink-muted)'}}>
+          قريبًا — هذا القسم قيد الإنشاء
+        </div>
+      )}
+
+      <nav className="bottom-nav">
+        <button className={tab==='settings'?'active':''} onClick={()=>setTab('settings')}>⚙️<span>الإعدادات</span></button>
+        <button className={tab==='earnings'?'active':''} onClick={()=>setTab('earnings')}>💰<span>الأرباح</span></button>
+        <button className={tab==='agenda'?'active':''} onClick={()=>setTab('agenda')}>📅<span>الجدول</span></button>
+        <button className={tab==='home'?'active':''} onClick={()=>setTab('home')}>🏠<span>الرئيسية</span></button>
+      </nav>
+
+      {selectedDay && (
+        <DaySheet
+          dateKey={selectedDay}
+          dayData={bookings[selectedDay]}
+          onClose={()=>setSelectedDay(null)}
+          onAddBooking={addBooking}
+          onRecordPayment={recordPayment}
+          onCancel={cancelBooking}
+          hallName={hallName}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── PENDING GATE (account created but not yet activated by admin) ───────
+function PendingGate({ whatsapp }){
+  return (
+    <div className="login-screen">
+      <div className="login-card">
+        <div className="login-panel active">
+          <div className="login-form" style={{textAlign:'center'}}>
+            <div style={{fontSize:'2.4rem', marginBottom:6}}>⏳</div>
+            <h3 style={{fontSize:'1.05rem', fontWeight:800, color:'var(--teal-dark)', marginBottom:8}}>الحساب في انتظار التفعيل</h3>
+            <div className="login-note">تم إنشاء حسابك. سيتم تفعيله خلال 24 ساعة بعد تأكيد الدفع.</div>
+            <div style={{background:'var(--coral-soft)', borderRadius:16, padding:16, marginBottom:16}}>
+              <div style={{fontSize:'.76rem', color:'var(--coral)', fontWeight:700, marginBottom:4}}>تواصل معنا عبر واتساب لتفعيل اشتراكك</div>
+              <div style={{fontSize:'1.05rem', fontWeight:800, color:'var(--ink)'}}>{whatsapp}</div>
+            </div>
+            <button type="button" className="btn-secondary" style={{width:'100%'}} onClick={()=>auth.signOut()}>تسجيل الخروج</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── ROOT APP: routes between Auth / Pending / MainApp based on Firebase state ─
+function App(){
+  const [authUser, setAuthUser] = useState(undefined); // undefined=loading, null=logged out
+  const [userDoc, setUserDoc] = useState(null);
+  const [whatsapp, setWhatsapp] = useState('+222 XX XX XX XX');
+
+  useEffect(() => {
+    db.collection('settings').doc('contact').get().then(snap => {
+      if(snap.exists && snap.data().whatsapp) setWhatsapp(snap.data().whatsapp);
+    }).catch(()=>{});
+  }, []);
+
+  useEffect(() => {
+    const unsub = auth.onAuthStateChanged(u => {
+      if(u){
+        setAuthUser(u);
+        const docUnsub = db.collection('users').doc(u.uid).onSnapshot(snap => {
+          setUserDoc(snap.exists ? { id: snap.id, ...snap.data() } : null);
+        });
+        return docUnsub;
+      } else {
+        setAuthUser(null);
+        setUserDoc(null);
+      }
+    });
+    return unsub;
+  }, []);
+
+  if(authUser === undefined){
+    return <div className="loading-screen"><div className="spinner"></div></div>;
+  }
+  if(!authUser) return <AuthScreen/>;
+  if(!userDoc || !userDoc.active) return <PendingGate whatsapp={whatsapp}/>;
+  return <MainApp uid={authUser.uid} userDoc={userDoc}/>;
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+
+</script>
+
+<script>
+if("serviceWorker" in navigator){
+  // Network-first strategy applied from day one — avoids the StadBook caching trap entirely.
+}
+</script>
 </body>
 </html>
