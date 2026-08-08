@@ -789,8 +789,6 @@ const { useState, useEffect, useCallback, useMemo } = React;
 
 // ── CONSTANTS ────────────────────────────────────────────────────────────
 const ADMIN_EMAIL_HINT = ""; // admin login lives in admin.html, not here
-const MONTH_NAMES = {0:'يناير',1:'فبراير',2:'مارس',3:'أبريل',4:'مايو',5:'يونيو',6:'يوليو',7:'أغسطس',8:'سبتمبر',9:'أكتوبر',10:'نوفمبر',11:'ديسمبر'};
-const DAY_NAMES = ['أحد','اثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'];
 
 function toKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
 function fmtM(n){
@@ -801,6 +799,19 @@ function fmtM(n){
   return d > 0 ? `${m},${d}M` : `${m}M`;
 }
 function formatPhone(p){ return (p||'').replace(/(\d{2})(?=\d)/g, '$1 ').trim(); }
+
+// Payment method is stored as a language-neutral key ('cash'/'other') so it
+// can be translated correctly no matter which language is displaying it —
+// only "Cash" and "Other" are generic labels that need translation; brand
+// names (Bankily, Masrvi, Sedad, etc.) are proper nouns and stay as-is in
+// every language. Old records saved before this fix stored the literal
+// Arabic word directly ('نقدا'/'أخرى') — recognized here too, so previously
+// saved payments also display correctly in every language, not just new ones.
+function formatPaymentMethod(method, t){
+  if(!method || method === 'cash' || method === 'نقدا') return t.cashMethod;
+  if(method === 'other' || method === 'أخرى') return t.otherMethod;
+  return method;
+}
 function getMonthGrid(y, m){
   const first = new Date(y, m, 1), cells = [];
   for(let i=0; i<first.getDay(); i++) cells.push(null);
@@ -824,11 +835,13 @@ function escapeHtml(str){
 // This replaces the old .print-overlay approach, which had to hide the entire
 // live app (bubbles, gradient header, RTL toggling) behind it and was the
 // source of the blank/purple renders and mirrored Arabic text.
-function openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAddress, bodyHtml }){
+function openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAddress, bodyHtml, t, lang }){
   const w = window.open('', '_blank');
   if(!w) return; // extremely unlikely since this is always called synchronously from a click, but guard just in case
+  const dir = lang === 'ar' ? 'rtl' : 'ltr';
+  const metaAlign = dir === 'rtl' ? 'left' : 'right';
   const html = `<!DOCTYPE html>
-<html dir="rtl" lang="ar">
+<html dir="${dir}" lang="${lang}">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -864,7 +877,7 @@ function openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAd
   .doc-header .mark{ width:38px; height:38px; border-radius:50%; background:#EEEDFB; color:#4D48C4; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.05rem; }
   .doc-header h1{ font-size:1.02rem; font-weight:800; color:#1E1B3A; }
   .doc-header .sub{ font-size:.7rem; color:#6B6785; margin-top:1px; }
-  .doc-header .meta{ text-align:left; font-size:.68rem; color:#6B6785; line-height:1.6; }
+  .doc-header .meta{ text-align:${metaAlign}; font-size:.68rem; color:#6B6785; line-height:1.6; }
 
   .doc-title{ text-align:center; margin-bottom:22px; }
   .doc-title h2{ font-size:1.1rem; font-weight:800; color:#1E1B3A; }
@@ -907,10 +920,10 @@ function openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAd
 </head>
 <body>
   <div class="print-topbar no-print">
-    <button onclick="window.close()" aria-label="إغلاق">✕</button>
+    <button onclick="window.close()" aria-label="${escapeHtml(t.closeAria)}">✕</button>
     <button class="print-btn" onclick="window.print()">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
-      طباعة / حفظ PDF
+      ${escapeHtml(t.printSaveBtn)}
     </button>
   </div>
   <div class="doc">
@@ -930,8 +943,9 @@ function openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAd
   w.document.close();
 }
 
-// ── LOGIN SCREEN TRANSLATIONS (AR/FR/EN) ────────────────────────────────
-const LOGIN_T = {
+// ── APP-WIDE TRANSLATIONS (AR/FR/EN) — covers login, every page, every
+// modal, and every printed PDF, so there's one single source of truth ──
+const APP_T = {
   ar: {
     brand:'قاعتي', tagline:'منصة لتسيير قاعات الأفراح والمناسبات',
     guideStep1:'١. أنشئ/ي حسابك', guideStep2:'٢. تواصل/ي معنا عبر واتساب', guideStep3:'٣. فعّل/ي حسابك وابدأ/ي الحجز!',
@@ -951,6 +965,59 @@ const LOGIN_T = {
     errorWrong:'البريد الإلكتروني أو كلمة المرور غير صحيحة.', errorExists:'هذا البريد الإلكتروني مسجل بالفعل.',
     errorGeneral:'حدث خطأ. حاول مجددًا.', errorName:'يرجى إدخال اسم القاعة.', errorMatch:'كلمتا المرور غير متطابقتين.',
     loading:'جارٍ التحميل...',
+    // Months / weekdays
+    months:['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'],
+    weekdaysFull:['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'],
+    weekdaysShort:['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'],
+    // Shared words
+    cancel:'إلغاء', save:'حفظ', edit:'تعديل', currency:'اوقية', otherMethod:'أخرى', cashMethod:'نقدا',
+    badgeFree:'متاح', badgePending:'متبقي مبلغ', badgeBooked:'محجوز',
+    // DaySheet
+    noBookingYet:'لا يوجد حجز في هذا التاريخ حاليًا.', addBookingBtn:'+ إضافة حجز لهذا التاريخ',
+    errFillRequired:'يرجى تعبئة كل الحقول المطلوبة.', errPaidExceedsTotal:'المبلغ المدفوع لا يمكن أن يكون أكبر من المبلغ الإجمالي.',
+    fieldClientName:'اسم الزبون', fieldPhoneNumber:'رقم الهاتف', fieldTotalAmount:'المبلغ الإجمالي (اوقية)',
+    fieldPaidNow:'المبلغ المدفوع الآن (اوقية)', fieldPaymentMethod:'طريقة الدفع', saveBookingBtn:'حفظ الحجز',
+    infoPhone:'الهاتف', infoTotalAmount:'المبلغ الإجمالي', infoPaid:'المدفوع', paidWord:'مدفوع', remainingWord:'متبقي',
+    paymentHistoryTitle:'سجل الدفعات', noPaymentsYet:'لا توجد دفعات بعد', receiptAria:'طباعة الإيصال',
+    recordPaymentBtn:'+ تسجيل دفعة', shareBtn:'مشاركة مع الزبون', editDetailsBtn:'تعديل التفاصيل',
+    cancelBookingBtn:'إلغاء الحجز', undoBtn:'تراجع', confirmCancelBtn:'تأكيد الإلغاء',
+    errEditTotalLessPrefix:'لا يمكن أن يكون المبلغ الإجمالي أقل من المدفوع بالفعل', saveEditsBtn:'حفظ التعديلات',
+    remainingAmountLabel:'المبلغ المتبقي', errEnterValidAmount:'يرجى إدخال مبلغ صحيح.',
+    errAmountExceedsRemainingPrefix:'المبلغ أكبر من المتبقي', payFullBtn:'تسديد كامل المبلغ المتبقي',
+    paymentDateLabel:'تاريخ الدفعة', confirmPaymentBtn:'تأكيد الدفعة',
+    // AgendaPage
+    searchByPhonePlaceholder:'ابحث برقم الهاتف', allMonths:'كل الأشهر', exportGuardAria:'تصدير الجدول للحارس',
+    filterAll:'الكل', bookingsCountSuffix:'حجوزات', noMatchingResults:'لا توجد نتائج مطابقة',
+    // EarningsPage
+    totalIncomeLabel:'إجمالي المداخيل', paymentsCountSuffix:'دفعات', remainingDepositsLabel:'المتبقي من العروبين',
+    acrossPendingBookings:'عبر الحجوزات المعلقة', exportAllPdfBtn:'تصدير كل السجل PDF', noDataYet:'لا توجد بيانات بعد',
+    backAria:'رجوع', totalThisMonthLabel:'إجمالي هذا الشهر', exportMonthPdfBtn:'تصدير بيانات هذا الشهر PDF',
+    paymentsTitle:'الدفعات', noPaymentsThisMonth:'لا توجد دفعات هذا الشهر',
+    // SettingsPage / FieldRow
+    hallInfoTitle:'معلومات القاعة', logoLetterLabel:'الحرف الظاهر في الشعار', hallNameLabel:'اسم القاعة',
+    hallPhoneLabel:'رقم الهاتف', hallAddressLabel:'العنوان', taglineLabel:'الوصف (يظهر تحت اسم القاعة)',
+    preferencesTitle:'التفضيلات', languageLabel:'اللغة', passwordSectionTitle:'كلمة المرور',
+    sendResetLinkBtn:'إرسال رابط إعادة تعيين كلمة المرور', resetSentMsg:'تم إرسال بريد إعادة التعيين!',
+    resetFailedMsg:'تعذّر الإرسال. حاول مجددًا.', accountSectionTitle:'الحساب', emailLabel:'البريد الإلكتروني',
+    loginPhoneLabel:'رقم الهاتف (لتسجيل الدخول)', logoutBtn:'تسجيل الخروج',
+    // MainApp / HomePage / bottom nav
+    monthBookingsRevenueLabel:'مداخيل حجوزات الشهر', fromWord:'من', thisMonthBookingsLabel:'حجوزات هذا الشهر',
+    incompletePaymentSuffix:'غير مكتملة الدفع', prevMonthAria:'الشهر السابق', nextMonthAria:'الشهر التالي',
+    calendarHint:'اضغط على أي تاريخ لعرض التفاصيل أو إضافة حجز جديد',
+    navHome:'الرئيسية', navAgenda:'الأجندة', navEarnings:'المداخيل', navSettings:'الإعدادات',
+    // PDFs
+    closeAria:'إغلاق', printSaveBtn:'طباعة / حفظ PDF',
+    pdfAgendaTitleAll:'جدول المناسبات — كل الأشهر', pdfAgendaTitleMonthPrefix:'جدول المناسبات —',
+    pdfForGuardSubtitle:'للمشاركة مع حارس القاعة', pdfColDate:'التاريخ', pdfColClient:'الزبون',
+    pdfColPhone:'الهاتف', pdfColStatus:'الحالة', pdfIssuedOn:'تم الإصدار بتاريخ',
+    pdfEarningsTitleAll:'تقرير الأرباح — كل الأشهر', pdfEarningsTitleMonthPrefix:'تقرير الأرباح —',
+    pdfSinceStart:'من بداية النشاط إلى اليوم', pdfThisMonthOnly:'هذا الشهر فقط',
+    pdfColAmountPaid:'المبلغ المدفوع', pdfColPaymentMethod:'طريقة الدفع',
+    pdfGrandTotal:'المجموع الكلي', pdfMonthTotal:'مجموع الشهر',
+    pdfDailyPermitTitle:'تصريح دخول لليوم', pdfPermitNote:'يرجى إبراز هذا التصريح لحارس القاعة عند الوصول يوم المناسبة.',
+    pdfReceiptTitle:'إيصال دفع', pdfEventDate:'تاريخ المناسبة', pdfAmountPaidThisPayment:'المبلغ المدفوع (هذه الدفعة)',
+    pdfBookingTotalAmount:'المبلغ الإجمالي للحجز', pdfTotalPaidSoFar:'مجموع المدفوع لحد الآن',
+    pdfFullyPaid:'تم سداد المبلغ بالكامل', pdfRemainingAmount:'المبلغ المتبقي',
   },
   fr: {
     brand:'Qaaty', tagline:'Plateforme de gestion de salles de fête',
@@ -971,6 +1038,51 @@ const LOGIN_T = {
     errorWrong:'Email ou mot de passe incorrect.', errorExists:'Cet email est déjà utilisé.',
     errorGeneral:"Une erreur s'est produite. Réessayez.", errorName:'Veuillez entrer le nom de la salle.', errorMatch:'Les mots de passe ne correspondent pas.',
     loading:'Chargement...',
+    months:['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'],
+    weekdaysFull:['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'],
+    weekdaysShort:['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'],
+    cancel:'Annuler', save:'Enregistrer', edit:'Modifier', currency:'MRU', otherMethod:'Autre', cashMethod:'Espèces',
+    badgeFree:'Disponible', badgePending:'Solde restant', badgeBooked:'Réservé',
+    noBookingYet:"Aucune réservation à cette date pour l'instant.", addBookingBtn:'+ Ajouter une réservation',
+    errFillRequired:'Veuillez remplir tous les champs requis.', errPaidExceedsTotal:'Le montant payé ne peut pas dépasser le montant total.',
+    fieldClientName:'Nom du client', fieldPhoneNumber:'Numéro de téléphone', fieldTotalAmount:'Montant total (MRU)',
+    fieldPaidNow:'Montant payé maintenant (MRU)', fieldPaymentMethod:'Méthode de paiement', saveBookingBtn:'Enregistrer la réservation',
+    infoPhone:'Téléphone', infoTotalAmount:'Montant total', infoPaid:'Payé', paidWord:'Payé', remainingWord:'Restant',
+    paymentHistoryTitle:'Historique des paiements', noPaymentsYet:'Aucun paiement pour le moment', receiptAria:"Imprimer le reçu",
+    recordPaymentBtn:'+ Enregistrer un paiement', shareBtn:'Partager avec le client', editDetailsBtn:'Modifier les détails',
+    cancelBookingBtn:'Annuler la réservation', undoBtn:'Retour', confirmCancelBtn:"Confirmer l'annulation",
+    errEditTotalLessPrefix:'Le montant total ne peut pas être inférieur au montant déjà payé', saveEditsBtn:'Enregistrer les modifications',
+    remainingAmountLabel:'Montant restant', errEnterValidAmount:'Veuillez entrer un montant valide.',
+    errAmountExceedsRemainingPrefix:'Le montant dépasse le solde restant', payFullBtn:'Payer le solde restant en totalité',
+    paymentDateLabel:'Date du paiement', confirmPaymentBtn:'Confirmer le paiement',
+    searchByPhonePlaceholder:'Rechercher par numéro de téléphone', allMonths:'Tous les mois', exportGuardAria:'Exporter le planning pour le gardien',
+    filterAll:'Tous', bookingsCountSuffix:'réservations', noMatchingResults:'Aucun résultat correspondant',
+    totalIncomeLabel:'Revenu total', paymentsCountSuffix:'paiements', remainingDepositsLabel:'Solde restant des acomptes',
+    acrossPendingBookings:'sur les réservations en attente', exportAllPdfBtn:'Exporter tout en PDF', noDataYet:'Aucune donnée pour le moment',
+    backAria:'Retour', totalThisMonthLabel:'Total de ce mois', exportMonthPdfBtn:'Exporter les données du mois en PDF',
+    paymentsTitle:'Paiements', noPaymentsThisMonth:'Aucun paiement ce mois-ci',
+    hallInfoTitle:'Informations de la salle', logoLetterLabel:'Lettre affichée sur le logo', hallNameLabel:'Nom de la salle',
+    hallPhoneLabel:'Numéro de téléphone', hallAddressLabel:'Adresse', taglineLabel:'Description (sous le nom de la salle)',
+    preferencesTitle:'Préférences', languageLabel:'Langue', passwordSectionTitle:'Mot de passe',
+    sendResetLinkBtn:'Envoyer le lien de réinitialisation', resetSentMsg:'E-mail de réinitialisation envoyé !',
+    resetFailedMsg:"Échec de l'envoi. Réessayez.", accountSectionTitle:'Compte', emailLabel:'E-mail',
+    loginPhoneLabel:'Numéro de téléphone (connexion)', logoutBtn:'Déconnexion',
+    monthBookingsRevenueLabel:'Revenus des réservations du mois', fromWord:'sur', thisMonthBookingsLabel:'Réservations ce mois-ci',
+    incompletePaymentSuffix:'paiement incomplet', prevMonthAria:'Mois précédent', nextMonthAria:'Mois suivant',
+    calendarHint:'Appuyez sur une date pour voir les détails ou ajouter une réservation',
+    navHome:'Accueil', navAgenda:'Agenda', navEarnings:'Revenus', navSettings:'Paramètres',
+    closeAria:'Fermer', printSaveBtn:'Imprimer / Enregistrer en PDF',
+    pdfAgendaTitleAll:'Planning des événements — Tous les mois', pdfAgendaTitleMonthPrefix:'Planning des événements —',
+    pdfForGuardSubtitle:'À partager avec le gardien de la salle', pdfColDate:'Date', pdfColClient:'Client',
+    pdfColPhone:'Téléphone', pdfColStatus:'Statut', pdfIssuedOn:'Émis le',
+    pdfEarningsTitleAll:'Rapport des revenus — Tous les mois', pdfEarningsTitleMonthPrefix:'Rapport des revenus —',
+    pdfSinceStart:"Depuis le début de l'activité à aujourd'hui", pdfThisMonthOnly:'Ce mois-ci uniquement',
+    pdfColAmountPaid:'Montant payé', pdfColPaymentMethod:'Méthode de paiement',
+    pdfGrandTotal:'Total général', pdfMonthTotal:'Total du mois',
+    pdfDailyPermitTitle:"Autorisation d'accès pour la journée", pdfPermitNote:"Veuillez présenter cette autorisation au gardien de la salle le jour de l'événement.",
+    pdfReceiptTitle:'Reçu de paiement', pdfEventDate:"Date de l'événement", pdfAmountPaidThisPayment:'Montant payé (ce paiement)',
+    pdfBookingTotalAmount:'Montant total de la réservation', pdfTotalPaidSoFar:'Total payé à ce jour',
+    pdfFullyPaid:'Montant payé intégralement', pdfRemainingAmount:'Montant restant',
   },
   en: {
     brand:'Qaaty', tagline:'A platform for managing wedding halls',
@@ -991,6 +1103,51 @@ const LOGIN_T = {
     errorWrong:'Incorrect email or password.', errorExists:'This email is already registered.',
     errorGeneral:'Something went wrong. Try again.', errorName:'Please enter your hall name.', errorMatch:'Passwords do not match.',
     loading:'Loading...',
+    months:['January','February','March','April','May','June','July','August','September','October','November','December'],
+    weekdaysFull:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
+    weekdaysShort:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+    cancel:'Cancel', save:'Save', edit:'Edit', currency:'MRU', otherMethod:'Other', cashMethod:'Cash',
+    badgeFree:'Available', badgePending:'Balance due', badgeBooked:'Booked',
+    noBookingYet:'No booking on this date yet.', addBookingBtn:'+ Add booking for this date',
+    errFillRequired:'Please fill in all required fields.', errPaidExceedsTotal:'The amount paid cannot exceed the total amount.',
+    fieldClientName:'Client name', fieldPhoneNumber:'Phone number', fieldTotalAmount:'Total amount (MRU)',
+    fieldPaidNow:'Amount paid now (MRU)', fieldPaymentMethod:'Payment method', saveBookingBtn:'Save booking',
+    infoPhone:'Phone', infoTotalAmount:'Total amount', infoPaid:'Paid', paidWord:'Paid', remainingWord:'Remaining',
+    paymentHistoryTitle:'Payment history', noPaymentsYet:'No payments yet', receiptAria:'Print receipt',
+    recordPaymentBtn:'+ Record payment', shareBtn:'Share with client', editDetailsBtn:'Edit details',
+    cancelBookingBtn:'Cancel booking', undoBtn:'Undo', confirmCancelBtn:'Confirm cancellation',
+    errEditTotalLessPrefix:'Total amount cannot be less than the amount already paid', saveEditsBtn:'Save changes',
+    remainingAmountLabel:'Remaining amount', errEnterValidAmount:'Please enter a valid amount.',
+    errAmountExceedsRemainingPrefix:'Amount exceeds the remaining balance', payFullBtn:'Pay full remaining amount',
+    paymentDateLabel:'Payment date', confirmPaymentBtn:'Confirm payment',
+    searchByPhonePlaceholder:'Search by phone number', allMonths:'All months', exportGuardAria:'Export schedule for the guard',
+    filterAll:'All', bookingsCountSuffix:'bookings', noMatchingResults:'No matching results',
+    totalIncomeLabel:'Total income', paymentsCountSuffix:'payments', remainingDepositsLabel:'Remaining deposits',
+    acrossPendingBookings:'across pending bookings', exportAllPdfBtn:'Export full record PDF', noDataYet:'No data yet',
+    backAria:'Back', totalThisMonthLabel:'Total this month', exportMonthPdfBtn:"Export this month's data PDF",
+    paymentsTitle:'Payments', noPaymentsThisMonth:'No payments this month',
+    hallInfoTitle:'Hall information', logoLetterLabel:'Letter shown on the logo', hallNameLabel:'Hall name',
+    hallPhoneLabel:'Phone number', hallAddressLabel:'Address', taglineLabel:'Description (shown under hall name)',
+    preferencesTitle:'Preferences', languageLabel:'Language', passwordSectionTitle:'Password',
+    sendResetLinkBtn:'Send password reset link', resetSentMsg:'Reset email sent!',
+    resetFailedMsg:'Could not send. Try again.', accountSectionTitle:'Account', emailLabel:'Email',
+    loginPhoneLabel:'Phone number (for login)', logoutBtn:'Log out',
+    monthBookingsRevenueLabel:"This month's booking revenue", fromWord:'from', thisMonthBookingsLabel:'Bookings this month',
+    incompletePaymentSuffix:'not fully paid', prevMonthAria:'Previous month', nextMonthAria:'Next month',
+    calendarHint:'Tap any date to view details or add a new booking',
+    navHome:'Home', navAgenda:'Agenda', navEarnings:'Earnings', navSettings:'Settings',
+    closeAria:'Close', printSaveBtn:'Print / Save PDF',
+    pdfAgendaTitleAll:'Event Schedule — All Months', pdfAgendaTitleMonthPrefix:'Event Schedule —',
+    pdfForGuardSubtitle:'To share with the hall guard', pdfColDate:'Date', pdfColClient:'Client',
+    pdfColPhone:'Phone', pdfColStatus:'Status', pdfIssuedOn:'Issued on',
+    pdfEarningsTitleAll:'Earnings Report — All Months', pdfEarningsTitleMonthPrefix:'Earnings Report —',
+    pdfSinceStart:'From the start of activity to today', pdfThisMonthOnly:'This month only',
+    pdfColAmountPaid:'Amount paid', pdfColPaymentMethod:'Payment method',
+    pdfGrandTotal:'Grand total', pdfMonthTotal:'Month total',
+    pdfDailyPermitTitle:'Day Entry Permit', pdfPermitNote:'Please show this permit to the hall guard on the day of the event.',
+    pdfReceiptTitle:'Payment Receipt', pdfEventDate:'Event date', pdfAmountPaidThisPayment:'Amount paid (this payment)',
+    pdfBookingTotalAmount:'Booking total amount', pdfTotalPaidSoFar:'Total paid so far',
+    pdfFullyPaid:'Fully paid', pdfRemainingAmount:'Remaining amount',
   },
 };
 
@@ -1013,8 +1170,8 @@ function AuthScreen({ lang, onLangChange }){
   const [showSignupPassConfirm, setShowSignupPassConfirm] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [whatsapp, setWhatsapp] = useState('+222 XX XX XX XX');
-  const t = LOGIN_T[lang];
+  const [whatsapp, setWhatsapp] = useState(''); // empty until Firestore resolves — avoids flashing a fake placeholder number
+  const t = APP_T[lang];
   // Text direction (dir/lang on <html>) is now handled once, globally, at the
   // App root — so it stays in sync everywhere, not just on this screen.
 
@@ -1025,9 +1182,10 @@ function AuthScreen({ lang, onLangChange }){
   );
 
   useEffect(() => {
-    db.collection('settings').doc('contact').get().then(snap => {
+    const unsub = db.collection('settings').doc('contact').onSnapshot(snap => {
       if(snap.exists && snap.data().whatsapp) setWhatsapp(snap.data().whatsapp);
-    }).catch(()=>{});
+    }, ()=>{});
+    return unsub;
   }, []);
 
   const handleLogin = async () => {
@@ -1102,10 +1260,12 @@ function AuthScreen({ lang, onLangChange }){
               <div style={{fontSize:'2.4rem', marginBottom:6}}>⏳</div>
               <h3 style={{fontSize:'1.05rem', fontWeight:800, color:'var(--teal-dark)', marginBottom:8}}>{t.pendingTitle}</h3>
               <div className="login-note">{t.pendingDesc}</div>
-              <div style={{background:'var(--coral-soft)', borderRadius:16, padding:16, marginBottom:16}}>
-                <div style={{fontSize:'.76rem', color:'var(--coral)', fontWeight:700, marginBottom:4}}>{t.pendingContact}</div>
-                <div style={{fontSize:'1.05rem', fontWeight:800, color:'var(--ink)'}}>{whatsapp}</div>
-              </div>
+              {whatsapp && (
+                <div style={{background:'var(--coral-soft)', borderRadius:16, padding:16, marginBottom:16}}>
+                  <div style={{fontSize:'.76rem', color:'var(--coral)', fontWeight:700, marginBottom:4}}>{t.pendingContact}</div>
+                  <div style={{fontSize:'1.05rem', fontWeight:800, color:'var(--ink)'}}>{whatsapp}</div>
+                </div>
+              )}
               <button type="button" className="btn-secondary" style={{width:'100%'}} onClick={()=>{auth.signOut();setPanel('auth');}}>{t.backToLogin}</button>
             </div>
           </div>
@@ -1131,8 +1291,12 @@ function AuthScreen({ lang, onLangChange }){
               <div style={{background:'var(--glass-strong)', borderRadius:16, padding:20, textAlign:'center', marginBottom:16}}>
                 <div style={{fontSize:'1.8rem', marginBottom:8}}>📞</div>
                 <div className="login-note" style={{marginBottom:12}}>{t.forgotDesc}</div>
-                <div style={{fontSize:'.85rem', fontWeight:700, color:'var(--teal-deep)'}}>WhatsApp</div>
-                <div style={{fontSize:'1.15rem', fontWeight:800, color:'var(--ink)', marginTop:4}}>{whatsapp}</div>
+                {whatsapp && (
+                  <>
+                    <div style={{fontSize:'.85rem', fontWeight:700, color:'var(--teal-deep)'}}>WhatsApp</div>
+                    <div style={{fontSize:'1.15rem', fontWeight:800, color:'var(--ink)', marginTop:4}}>{whatsapp}</div>
+                  </>
+                )}
               </div>
               <button type="button" className="btn-secondary" style={{width:'100%'}} onClick={()=>setPanel('auth')}>{t.backToLogin}</button>
             </div>
@@ -1161,10 +1325,12 @@ function AuthScreen({ lang, onLangChange }){
             </div>
           ))}
         </div>
-        <div className="login-contact-card">
-          <div className="lcc-label">{t.contactLabel}</div>
-          <div className="lcc-number">WhatsApp: {whatsapp}</div>
-        </div>
+        {whatsapp && (
+          <div className="login-contact-card">
+            <div className="lcc-label">{t.contactLabel}</div>
+            <div className="lcc-number">WhatsApp: {whatsapp}</div>
+          </div>
+        )}
 
         <div className="login-avatar" style={{background:'none'}}>
           <svg viewBox="0 0 512 512" width="40" height="40"><defs><linearGradient id="bgLoginApp" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#8791E8"/><stop offset="100%" stopColor="#4D48C4"/></linearGradient></defs><rect x="0" y="0" width="512" height="512" rx="115" fill="url(#bgLoginApp)"/><rect x="175" y="54" width="26" height="56" rx="13" fill="#FFFFFF"/><rect x="311" y="54" width="26" height="56" rx="13" fill="#FFFFFF"/><rect x="96" y="118" width="320" height="290" rx="32" fill="#FFFFFF"/><path d="M128,118 L384,118 A32,32 0 0 1 416,150 L416,198 L96,198 L96,150 A32,32 0 0 1 128,118 Z" fill="#4D48C4"/><circle cx="256" cy="303" r="62" fill="#E8598F"/><path d="M228,304 L248,324 L288,280" fill="none" stroke="#FFFFFF" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -1257,7 +1423,7 @@ function AuthScreen({ lang, onLangChange }){
 // language and layout (e.g. showing month names in English regardless of app
 // language). This gives full control: always numeric DD/MM/YYYY, and a real
 // calendar picker button alongside direct number entry.
-function DateField({ value, onChange }){
+function DateField({ value, onChange, t }){
   const [y, m, d] = value.split('-').map(Number);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerMonth, setPickerMonth] = useState(m-1);
@@ -1294,7 +1460,7 @@ function DateField({ value, onChange }){
           <div className="date-picker-popup" onClick={e=>e.stopPropagation()}>
             <div className="date-picker-nav">
               <button type="button" onClick={prevMonth}>‹</button>
-              <span>{MONTH_NAMES[pickerMonth]} {pickerYear}</span>
+              <span>{t.months[pickerMonth]} {pickerYear}</span>
               <button type="button" onClick={nextMonth}>›</button>
             </div>
             <div className="date-picker-weekdays">
@@ -1320,14 +1486,14 @@ function DateField({ value, onChange }){
 }
 
 // ── DAY SHEET (matches original .overlay/.sheet/.badge/.deposit-bar design exactly) ──
-function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecordPayment, onCancel, onShare, onOpenReceipt, onEditBooking }){
+function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecordPayment, onCancel, onShare, onOpenReceipt, onEditBooking, t }){
   const [screen, setScreen] = useState(dayData ? 'view' : 'empty');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [total, setTotal] = useState('');
   const [paidNow, setPaidNow] = useState('');
   const [payAmount, setPayAmount] = useState('');
-  const [payMethod, setPayMethod] = useState('نقدا');
+  const [payMethod, setPayMethod] = useState('cash');
   const [payDate, setPayDate] = useState(toKey(new Date()));
   const [payError, setPayError] = useState('');
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -1444,33 +1610,33 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
 
         {screen === 'empty' && !dayData && (
           <>
-            <span className="badge free">متاح</span>
-            <p style={{fontSize:'.85rem', color:'var(--ink-muted)', lineHeight:1.8, marginBottom:18}}>لا يوجد حجز في هذا التاريخ حاليًا.</p>
-            <button className="btn-primary" style={{width:'100%'}} onClick={()=>setScreen('add')}>+ إضافة حجز لهذا التاريخ</button>
+            <span className="badge free">{t.badgeFree}</span>
+            <p style={{fontSize:'.85rem', color:'var(--ink-muted)', lineHeight:1.8, marginBottom:18}}>{t.noBookingYet}</p>
+            <button className="btn-primary" style={{width:'100%'}} onClick={()=>setScreen('add')}>{t.addBookingBtn}</button>
           </>
         )}
 
         {screen === 'add' && !dayData && (
           <form onSubmit={e=>{
             e.preventDefault();
-            if(!name.trim() || !phone.trim() || !total){ setAddError('يرجى تعبئة كل الحقول المطلوبة.'); return; }
+            if(!name.trim() || !phone.trim() || !total){ setAddError(t.errFillRequired); return; }
             const totalNum = Number(total);
             const paidNowNum = Number(paidNow)||0;
-            if(paidNowNum > totalNum){ setAddError('المبلغ المدفوع لا يمكن أن يكون أكبر من المبلغ الإجمالي.'); return; }
+            if(paidNowNum > totalNum){ setAddError(t.errPaidExceedsTotal); return; }
             const freshData = onAddBooking(dateKey, { clientName:name.trim(), phone:phone.trim(), total:totalNum, paidNow:paidNowNum, method:payMethod });
             setAddError('');
             onClose();
             if(paidNowNum > 0) onOpenReceipt(0, freshData); // a payment was made at booking time — show the receipt right away, using the just-created data directly
           }}>
             {addError && <div className="form-error">{addError}</div>}
-            <div className="field"><label>اسم الزبون</label><input value={name} onChange={e=>{setName(e.target.value);setAddError('');}} required/></div>
-            <div className="field"><label>رقم الهاتف</label><input type="tel" value={phone} onChange={e=>{setPhone(e.target.value);setAddError('');}} required/></div>
-            <div className="field"><label>المبلغ الإجمالي (اوقية)</label><input type="number" value={total} onChange={e=>{setTotal(e.target.value);setAddError('');}} required/></div>
-            <div className="field"><label>المبلغ المدفوع الآن (اوقية)</label><input type="number" value={paidNow} onChange={e=>{setPaidNow(e.target.value);setAddError('');}}/></div>
+            <div className="field"><label>{t.fieldClientName}</label><input value={name} onChange={e=>{setName(e.target.value);setAddError('');}} required/></div>
+            <div className="field"><label>{t.fieldPhoneNumber}</label><input type="tel" value={phone} onChange={e=>{setPhone(e.target.value);setAddError('');}} required/></div>
+            <div className="field"><label>{t.fieldTotalAmount}</label><input type="number" value={total} onChange={e=>{setTotal(e.target.value);setAddError('');}} required/></div>
+            <div className="field"><label>{t.fieldPaidNow}</label><input type="number" value={paidNow} onChange={e=>{setPaidNow(e.target.value);setAddError('');}}/></div>
             <div className="field">
-              <label>طريقة الدفع</label>
+              <label>{t.fieldPaymentMethod}</label>
               <select value={payMethod} onChange={e=>setPayMethod(e.target.value)}>
-                <option value="نقدا">نقدا</option>
+                <option value="cash">{t.cashMethod}</option>
                 <option value="Bankily">Bankily</option>
                 <option value="Masrvi">Masrvi</option>
                 <option value="Sedad">Sedad</option>
@@ -1480,12 +1646,12 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
                 <option value="BCIpay">BCIpay</option>
                 <option value="GazaPay">GazaPay</option>
                 <option value="Moov Money">Moov Money</option>
-                <option value="أخرى">أخرى</option>
+                <option value="other">{t.otherMethod}</option>
               </select>
             </div>
             <div className="sheet-actions">
-              <button type="button" className="btn-secondary" onClick={()=>setScreen('empty')}>إلغاء</button>
-              <button type="submit" className="btn-primary">حفظ الحجز</button>
+              <button type="button" className="btn-secondary" onClick={()=>setScreen('empty')}>{t.cancel}</button>
+              <button type="submit" className="btn-primary">{t.saveBookingBtn}</button>
             </div>
           </form>
         )}
@@ -1493,22 +1659,22 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
         {screen === 'view' && dayData && (
           <>
             <div className="ds-date">{dateLabel}</div>
-            <span className={`badge ${status}`}>{status==='pending'?'متبقي مبلغ':'محجوز'}</span>
-            <div className="info-row"><span>الهاتف</span><span className="ltr-nums">{formatPhone(dayData.phone)}</span></div>
-            <div className="info-row"><span>المبلغ الإجمالي</span><span>{dayData.total.toLocaleString('en-US')} اوقية</span></div>
-            <div className="info-row"><span>المدفوع</span><span>{paid.toLocaleString('en-US')} اوقية</span></div>
+            <span className={`badge ${status}`}>{status==='pending'?t.badgePending:t.badgeBooked}</span>
+            <div className="info-row"><span>{t.infoPhone}</span><span className="ltr-nums">{formatPhone(dayData.phone)}</span></div>
+            <div className="info-row"><span>{t.infoTotalAmount}</span><span>{dayData.total.toLocaleString('en-US')} {t.currency}</span></div>
+            <div className="info-row"><span>{t.infoPaid}</span><span>{paid.toLocaleString('en-US')} {t.currency}</span></div>
             <div className="deposit-bar"><div className="deposit-fill" style={{width:pct+'%'}}></div></div>
-            <div className="deposit-caption"><span>{pct}% مدفوع</span><span>{remaining.toLocaleString('en-US')} اوقية متبقي</span></div>
+            <div className="deposit-caption"><span>{pct}% {t.paidWord}</span><span>{remaining.toLocaleString('en-US')} {t.currency} {t.remainingWord}</span></div>
 
-            <div className="ds-section-title">سجل الدفعات</div>
+            <div className="ds-section-title">{t.paymentHistoryTitle}</div>
             <div className="payment-history">
-              {sortedPayments.length === 0 && <div style={{fontSize:'.8rem', color:'var(--ink-muted)'}}>لا توجد دفعات بعد</div>}
+              {sortedPayments.length === 0 && <div style={{fontSize:'.8rem', color:'var(--ink-muted)'}}>{t.noPaymentsYet}</div>}
               {sortedPayments.map((p,i) => (
                 <div className="payment-row" key={p.id||i}>
-                  <span className="p-date">{p.date} · {p.method || 'نقدا'}</span>
+                  <span className="p-date">{p.date} · {formatPaymentMethod(p.method, t)}</span>
                   <span style={{display:'flex', alignItems:'center', gap:10}}>
-                    <span className="p-amount">{p.amount.toLocaleString('en-US')} اوقية</span>
-                    <button className="receipt-icon-btn" aria-label="طباعة الإيصال" onClick={()=>onOpenReceipt(dayData.payments.indexOf(p))}>
+                    <span className="p-amount">{p.amount.toLocaleString('en-US')} {t.currency}</span>
+                    <button className="receipt-icon-btn" aria-label={t.receiptAria} onClick={()=>onOpenReceipt(dayData.payments.indexOf(p))}>
                       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
                     </button>
                   </span>
@@ -1516,21 +1682,21 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
               ))}
             </div>
 
-            {remaining > 0 && <button className="btn-primary" style={{width:'100%', marginTop:16}} onClick={()=>setScreen('pay')}>+ تسجيل دفعة</button>}
-            <button className="btn-secondary" style={{width:'100%', marginTop:10}} onClick={onShare}>مشاركة مع الزبون</button>
+            {remaining > 0 && <button className="btn-primary" style={{width:'100%', marginTop:16}} onClick={()=>setScreen('pay')}>{t.recordPaymentBtn}</button>}
+            <button className="btn-secondary" style={{width:'100%', marginTop:10}} onClick={onShare}>{t.shareBtn}</button>
 
             {!confirmCancel ? (
               <div style={{display:'flex', gap:10, marginTop:10}}>
                 <button className="btn-secondary" style={{flex:1}} onClick={()=>{
                   setEditName(dayData.clientName); setEditPhone(dayData.phone); setEditTotal(String(dayData.total));
                   setScreen('edit');
-                }}>تعديل التفاصيل</button>
-                <button className="btn-secondary" style={{flex:1, background:'rgba(232,89,143,0.18)', color:'#FBD9E6'}} onClick={()=>setConfirmCancel(true)}>إلغاء الحجز</button>
+                }}>{t.editDetailsBtn}</button>
+                <button className="btn-secondary" style={{flex:1, background:'rgba(232,89,143,0.18)', color:'#FBD9E6'}} onClick={()=>setConfirmCancel(true)}>{t.cancelBookingBtn}</button>
               </div>
             ) : (
               <div className="sheet-actions" style={{marginTop:10}}>
-                <button className="btn-secondary" onClick={()=>setConfirmCancel(false)}>تراجع</button>
-                <button className="btn-primary" style={{background:'var(--coral)'}} onClick={()=>{onCancel(dateKey); onClose();}}>تأكيد الإلغاء</button>
+                <button className="btn-secondary" onClick={()=>setConfirmCancel(false)}>{t.undoBtn}</button>
+                <button className="btn-primary" style={{background:'var(--coral)'}} onClick={()=>{onCancel(dateKey); onClose();}}>{t.confirmCancelBtn}</button>
               </div>
             )}
           </>
@@ -1541,18 +1707,18 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
             e.preventDefault();
             const newTotal = Number(editTotal);
             if(!editName.trim() || !editPhone.trim() || !newTotal) return;
-            if(newTotal < paid){ setEditError(`لا يمكن أن يكون المبلغ الإجمالي أقل من المدفوع بالفعل (${paid.toLocaleString('en-US')} اوقية)`); return; }
+            if(newTotal < paid){ setEditError(`${t.errEditTotalLessPrefix} (${paid.toLocaleString('en-US')} ${t.currency})`); return; }
             onEditBooking(dateKey, { clientName:editName.trim(), phone:editPhone.trim(), total:newTotal });
             setEditError('');
             setScreen('view');
           }}>
             {editError && <div className="form-error">{editError}</div>}
-            <div className="field"><label>اسم الزبون</label><input type="text" value={editName} onChange={e=>setEditName(e.target.value)} required/></div>
-            <div className="field"><label>رقم الهاتف</label><input type="tel" value={editPhone} onChange={e=>setEditPhone(e.target.value)} required/></div>
-            <div className="field"><label>المبلغ الإجمالي (اوقية)</label><input type="number" min="0" value={editTotal} onChange={e=>setEditTotal(e.target.value)} required/></div>
+            <div className="field"><label>{t.fieldClientName}</label><input type="text" value={editName} onChange={e=>setEditName(e.target.value)} required/></div>
+            <div className="field"><label>{t.fieldPhoneNumber}</label><input type="tel" value={editPhone} onChange={e=>setEditPhone(e.target.value)} required/></div>
+            <div className="field"><label>{t.fieldTotalAmount}</label><input type="number" min="0" value={editTotal} onChange={e=>setEditTotal(e.target.value)} required/></div>
             <div className="sheet-actions">
-              <button type="button" className="btn-secondary" onClick={()=>{setEditError('');setScreen('view');}}>إلغاء</button>
-              <button type="submit" className="btn-primary">حفظ التعديلات</button>
+              <button type="button" className="btn-secondary" onClick={()=>{setEditError('');setScreen('view');}}>{t.cancel}</button>
+              <button type="submit" className="btn-primary">{t.saveEditsBtn}</button>
             </div>
           </form>
         )}
@@ -1560,14 +1726,14 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
         {screen === 'pay' && dayData && (
           <>
             <div className="remaining-box">
-              <div className="r-label">المبلغ المتبقي</div>
-              <div className="r-value">{remaining.toLocaleString('en-US')} اوقية</div>
+              <div className="r-label">{t.remainingAmountLabel}</div>
+              <div className="r-value">{remaining.toLocaleString('en-US')} {t.currency}</div>
             </div>
             <form onSubmit={e=>{
               e.preventDefault();
               const amt = Number(payAmount);
-              if(!amt || amt <= 0){ setPayError('يرجى إدخال مبلغ صحيح.'); return; }
-              if(amt > remaining){ setPayError(`المبلغ أكبر من المتبقي (${remaining.toLocaleString('en-US')} اوقية).`); return; }
+              if(!amt || amt <= 0){ setPayError(t.errEnterValidAmount); return; }
+              if(amt > remaining){ setPayError(`${t.errAmountExceedsRemainingPrefix} (${remaining.toLocaleString('en-US')} ${t.currency}).`); return; }
               const newPaymentIndex = (dayData.payments||[]).length; // index the new payment will occupy
               const freshData = onRecordPayment(dateKey, amt, payMethod, payDate);
               setPayAmount(''); setPayError('');
@@ -1576,18 +1742,18 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
             }}>
               {payError && <div className="form-error">{payError}</div>}
               <div className="field">
-                <label>المبلغ المدفوع الآن (اوقية)</label>
+                <label>{t.fieldPaidNow}</label>
                 <input type="number" value={payAmount} onChange={e=>{setPayAmount(e.target.value);setPayError('');}} min="1" required/>
-                <button type="button" className="btn-pay-full" onClick={()=>{setPayAmount(String(remaining));setPayError('');}}>تسديد كامل المبلغ المتبقي</button>
+                <button type="button" className="btn-pay-full" onClick={()=>{setPayAmount(String(remaining));setPayError('');}}>{t.payFullBtn}</button>
               </div>
               <div className="field">
-                <label>تاريخ الدفعة</label>
-                <DateField value={payDate} onChange={setPayDate}/>
+                <label>{t.paymentDateLabel}</label>
+                <DateField value={payDate} onChange={setPayDate} t={t}/>
               </div>
               <div className="field">
-                <label>طريقة الدفع</label>
+                <label>{t.fieldPaymentMethod}</label>
                 <select value={payMethod} onChange={e=>setPayMethod(e.target.value)}>
-                  <option value="نقدا">نقدا</option>
+                  <option value="cash">{t.cashMethod}</option>
                   <option value="Bankily">Bankily</option>
                   <option value="Masrvi">Masrvi</option>
                   <option value="Sedad">Sedad</option>
@@ -1597,12 +1763,12 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
                   <option value="BCIpay">BCIpay</option>
                   <option value="GazaPay">GazaPay</option>
                   <option value="Moov Money">Moov Money</option>
-                  <option value="أخرى">أخرى</option>
+                  <option value="other">{t.otherMethod}</option>
                 </select>
               </div>
               <div className="sheet-actions">
-                <button type="button" className="btn-secondary" onClick={()=>{setPayError('');setScreen('view');}}>إلغاء</button>
-                <button type="submit" className="btn-primary">تأكيد الدفعة</button>
+                <button type="button" className="btn-secondary" onClick={()=>{setPayError('');setScreen('view');}}>{t.cancel}</button>
+                <button type="submit" className="btn-primary">{t.confirmPaymentBtn}</button>
               </div>
             </form>
           </>
@@ -1614,7 +1780,7 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
 
 // ── AGENDA PAGE (moved to top-level so it keeps its own filter/search state
 // across MainApp re-renders — e.g. closing a sheet no longer resets it) ──
-function AgendaPage({ bookings, onSelectDay, onExport }){
+function AgendaPage({ bookings, onSelectDay, onExport, t }){
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
   const [monthFilter, setMonthFilter] = useState('all');
@@ -1642,40 +1808,40 @@ function AgendaPage({ bookings, onSelectDay, onExport }){
       <div className="search-row">
         <div className="search-box">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
-          <input type="tel" placeholder="ابحث برقم الهاتف" value={search} onChange={e=>setSearch(e.target.value)}/>
+          <input type="tel" placeholder={t.searchByPhonePlaceholder} value={search} onChange={e=>setSearch(e.target.value)}/>
         </div>
         <select className="month-select" value={monthFilter} onChange={e=>setMonthFilter(e.target.value)}>
-          <option value="all">كل الأشهر</option>
+          <option value="all">{t.allMonths}</option>
           {monthKeys.map(mk => {
             const [y,m] = mk.split('-');
-            return <option key={mk} value={mk}>{MONTH_NAMES[parseInt(m,10)-1]} {y}</option>;
+            return <option key={mk} value={mk}>{t.months[parseInt(m,10)-1]} {y}</option>;
           })}
         </select>
-        <button className="export-icon-btn" aria-label="تصدير الجدول للحارس" onClick={()=>onExport(monthFilter)}>
+        <button className="export-icon-btn" aria-label={t.exportGuardAria} onClick={()=>onExport(monthFilter)}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 3v12m0 0l-4-4m4 4l4-4M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
         </button>
       </div>
       <div className="filter-chips">
-        <button className={`chip ${filter==='all'?'active':''}`} onClick={()=>setFilter('all')}>الكل</button>
-        <button className={`chip ${filter==='booked'?'active':''}`} onClick={()=>setFilter('booked')}>محجوز</button>
-        <button className={`chip ${filter==='pending'?'active':''}`} onClick={()=>setFilter('pending')}>متبقي مبلغ</button>
+        <button className={`chip ${filter==='all'?'active':''}`} onClick={()=>setFilter('all')}>{t.filterAll}</button>
+        <button className={`chip ${filter==='booked'?'active':''}`} onClick={()=>setFilter('booked')}>{t.badgeBooked}</button>
+        <button className={`chip ${filter==='pending'?'active':''}`} onClick={()=>setFilter('pending')}>{t.badgePending}</button>
       </div>
-      <div style={{fontSize:'.78rem', color:'var(--ink-muted)', marginBottom:12}}>{entries.length} حجوزات</div>
+      <div style={{fontSize:'.78rem', color:'var(--ink-muted)', marginBottom:12}}>{entries.length} {t.bookingsCountSuffix}</div>
       <div className="agenda-list">
-        {entries.length === 0 && <div className="empty-state">لا توجد نتائج مطابقة</div>}
+        {entries.length === 0 && <div className="empty-state">{t.noMatchingResults}</div>}
         {entries.map(b => {
           const d = new Date(b.dk+'T12:00:00');
           return (
             <div className={`agenda-item ${b.status}`} key={b.dk} onClick={()=>onSelectDay(b.dk)}>
               <div className="agenda-date">
                 <div className="num">{d.getDate()}</div>
-                <div className="mon">{MONTH_NAMES[d.getMonth()]}</div>
+                <div className="mon">{t.months[d.getMonth()]}</div>
               </div>
               <div className="agenda-info">
                 <div className="name">{b.clientName}</div>
                 <div className="meta ltr-nums">{formatPhone(b.phone)}</div>
               </div>
-              <div className="agenda-status">{b.status==='pending'?'متبقي مبلغ':'محجوز'}</div>
+              <div className="agenda-status">{b.status==='pending'?t.badgePending:t.badgeBooked}</div>
             </div>
           );
         })}
@@ -1686,7 +1852,7 @@ function AgendaPage({ bookings, onSelectDay, onExport }){
 
 // ── EARNINGS PAGE (moved to top-level so drilledMonth survives MainApp
 // re-renders — e.g. closing the info sheet or an export no longer resets it) ──
-function EarningsPage({ bookings, onSelectDay, onExport }){
+function EarningsPage({ bookings, onSelectDay, onExport, t }){
   const [drilledMonth, setDrilledMonth] = useState(null);
 
   // Flatten every payment across every booking into one list, tagged with
@@ -1737,33 +1903,33 @@ function EarningsPage({ bookings, onSelectDay, onExport }){
         <>
           <div className="cards" style={{gridTemplateColumns:'1fr 1fr', marginBottom:18}}>
             <div className="card">
-              <div className="label">إجمالي المداخيل</div>
-              <div className="value">{fmtM(shownTotal)} اوقية</div>
-              <div className="sub">{shownCount} دفعات</div>
+              <div className="label">{t.totalIncomeLabel}</div>
+              <div className="value">{fmtM(shownTotal)} {t.currency}</div>
+              <div className="sub">{shownCount} {t.paymentsCountSuffix}</div>
             </div>
             <div className="card accent">
-              <div className="label">المتبقي من العروبين</div>
-              <div className="value">{fmtM(remainingAcrossAllBookings)} اوقية</div>
-              <div className="sub">عبر الحجوزات المعلقة</div>
+              <div className="label">{t.remainingDepositsLabel}</div>
+              <div className="value">{fmtM(remainingAcrossAllBookings)} {t.currency}</div>
+              <div className="sub">{t.acrossPendingBookings}</div>
             </div>
           </div>
           <button className="export-earnings-btn" onClick={()=>onExport('all')}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
-            تصدير كل السجل PDF
+            {t.exportAllPdfBtn}
           </button>
           <div className="agenda-list">
-            {allMonthKeys.length === 0 && <div className="empty-state">لا توجد بيانات بعد</div>}
+            {allMonthKeys.length === 0 && <div className="empty-state">{t.noDataYet}</div>}
             {allMonthKeys.map(mk => {
               const s = statsForMonthKey(mk);
               const [y,m] = mk.split('-');
               return (
                 <div className="month-card" key={mk} onClick={()=>setDrilledMonth(mk)}>
                   <div>
-                    <div className="mc-name">{MONTH_NAMES[parseInt(m,10)-1]} {y}</div>
-                    <div className="mc-sub">{s.count} دفعات</div>
+                    <div className="mc-name">{t.months[parseInt(m,10)-1]} {y}</div>
+                    <div className="mc-sub">{s.count} {t.paymentsCountSuffix}</div>
                   </div>
                   <div style={{display:'flex', alignItems:'center', gap:10}}>
-                    <div className="mc-total">{fmtM(s.total)} اوقية</div>
+                    <div className="mc-total">{fmtM(s.total)} {t.currency}</div>
                     <span className="mc-arrow">‹</span>
                   </div>
                 </div>
@@ -1774,32 +1940,32 @@ function EarningsPage({ bookings, onSelectDay, onExport }){
       ) : (
         <>
           <div className="month-detail-head">
-            <button onClick={()=>setDrilledMonth(null)} aria-label="رجوع">‹</button>
-            <h2>{(() => { const [y,m]=drilledMonth.split('-'); return `${MONTH_NAMES[parseInt(m,10)-1]} ${y}`; })()}</h2>
+            <button onClick={()=>setDrilledMonth(null)} aria-label={t.backAria}>‹</button>
+            <h2>{(() => { const [y,m]=drilledMonth.split('-'); return `${t.months[parseInt(m,10)-1]} ${y}`; })()}</h2>
           </div>
           <div className="card" style={{margin:'14px 0'}}>
-            <div className="label">إجمالي هذا الشهر</div>
-            <div className="value">{fmtM(shownTotal)} اوقية</div>
-            <div className="sub">{shownCount} دفعات</div>
+            <div className="label">{t.totalThisMonthLabel}</div>
+            <div className="value">{fmtM(shownTotal)} {t.currency}</div>
+            <div className="sub">{shownCount} {t.paymentsCountSuffix}</div>
           </div>
           <button className="export-earnings-btn" onClick={()=>onExport(drilledMonth)}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
-            تصدير بيانات هذا الشهر PDF
+            {t.exportMonthPdfBtn}
           </button>
-          <div className="ds-section-title" style={{color:'var(--ink-muted)'}}>الدفعات</div>
+          <div className="ds-section-title" style={{color:'var(--ink-muted)'}}>{t.paymentsTitle}</div>
           <div className="agenda-list">
-            {monthPayments.length === 0 && <div className="empty-state">لا توجد دفعات هذا الشهر</div>}
+            {monthPayments.length === 0 && <div className="empty-state">{t.noPaymentsThisMonth}</div>}
             {monthPayments.map((p,i) => {
               const d = new Date(p.date+'T12:00:00');
               return (
                 <div className="agenda-item booked" key={p.id||i} onClick={()=>onSelectDay(p.bookingDateKey)}>
                   <div className="agenda-date">
                     <div className="num">{d.getDate()}</div>
-                    <div className="mon">{MONTH_NAMES[d.getMonth()]}</div>
+                    <div className="mon">{t.months[d.getMonth()]}</div>
                   </div>
                   <div className="agenda-info">
                     <div className="name">{p.clientName}</div>
-                    <div className="meta">{p.method || 'نقدا'} · {p.amount.toLocaleString('en-US')} اوقية</div>
+                    <div className="meta">{formatPaymentMethod(p.method, t)} · {p.amount.toLocaleString('en-US')} {t.currency}</div>
                   </div>
                 </div>
               );
@@ -1814,7 +1980,7 @@ function EarningsPage({ bookings, onSelectDay, onExport }){
 // ── SETTINGS FIELD ROW (top-level so it keeps a stable identity across
 // SettingsPage re-renders — being redefined on every keystroke was what
 // caused the input to lose focus after a single character) ──
-function FieldRow({ label, field, value, setter, ltr, editField, temp, setTemp, startEdit, saveField }){
+function FieldRow({ label, field, value, setter, ltr, editField, temp, setTemp, startEdit, saveField, t }){
   return (
     <div>
       <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:5}}>{label}</label>
@@ -1823,12 +1989,12 @@ function FieldRow({ label, field, value, setter, ltr, editField, temp, setTemp, 
           <div className="field" style={{flex:1, marginBottom:0}}>
             <input value={temp} onChange={e=>setTemp(e.target.value)} style={ltr?{direction:'ltr', textAlign:'left'}:{}}/>
           </div>
-          <button className="btn-save-light" onClick={()=>saveField(field, setter)}>حفظ</button>
+          <button className="btn-save-light" onClick={()=>saveField(field, setter)}>{t.save}</button>
         </div>
       ) : (
         <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
           <span className={ltr?'ltr-nums':''} style={{fontWeight:700}}>{value}</span>
-          <button className="btn-edit-light" onClick={()=>startEdit(field, value)}>تعديل</button>
+          <button className="btn-edit-light" onClick={()=>startEdit(field, value)}>{t.edit}</button>
         </div>
       )}
     </div>
@@ -1837,7 +2003,7 @@ function FieldRow({ label, field, value, setter, ltr, editField, temp, setTemp, 
 
 // ── SETTINGS PAGE (moved to top-level so its edit state survives MainApp
 // re-renders, same as Agenda/Earnings) ──
-function SettingsPage({ uid, hallName, setHallName, hallPhone, setHallPhone, hallAddress, setHallAddress, tagline, setTagline, badgeLetter, setBadgeLetter, accountPhone, setAccountPhone, lang, onLangChange }){
+function SettingsPage({ uid, hallName, setHallName, hallPhone, setHallPhone, hallAddress, setHallAddress, tagline, setTagline, badgeLetter, setBadgeLetter, accountPhone, setAccountPhone, lang, onLangChange, t }){
   const [editField, setEditField] = useState(null); // which field is currently being edited
   const [temp, setTemp] = useState('');
   const [resetMsg, setResetMsg] = useState(null); // {type:'ok'|'error', text}
@@ -1852,40 +2018,40 @@ function SettingsPage({ uid, hallName, setHallName, hallPhone, setHallPhone, hal
   return (
     <div className="page active">
       <div className="settings-group">
-        <h4>معلومات القاعة</h4>
+        <h4>{t.hallInfoTitle}</h4>
         <div className="settings-card" style={{padding:16, display:'flex', flexDirection:'column', gap:14}}>
 
           <div style={{display:'flex', alignItems:'center', gap:12, paddingBottom:14, borderBottom:'1px solid rgba(255,255,255,.4)'}}>
             <div className="avatar-ring" style={{width:52, height:52, margin:0, fontSize:'1.3rem'}}>{badgeLetter}</div>
             <div style={{flex:1}}>
-              <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:5}}>الحرف الظاهر في الشعار</label>
+              <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:5}}>{t.logoLetterLabel}</label>
               {editField === 'badgeLetter' ? (
                 <div style={{display:'flex', gap:8}}>
                   <div className="field" style={{marginBottom:0}}>
                     <input value={temp} maxLength={1} onChange={e=>setTemp(e.target.value)} style={{width:60, textAlign:'center'}}/>
                   </div>
-                  <button className="btn-save-light" onClick={()=>saveField('badgeLetter', setBadgeLetter)}>حفظ</button>
+                  <button className="btn-save-light" onClick={()=>saveField('badgeLetter', setBadgeLetter)}>{t.save}</button>
                 </div>
               ) : (
                 <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
                   <span style={{fontWeight:800}}>{badgeLetter}</span>
-                  <button className="btn-edit-light" onClick={()=>startEdit('badgeLetter', badgeLetter)}>تعديل</button>
+                  <button className="btn-edit-light" onClick={()=>startEdit('badgeLetter', badgeLetter)}>{t.edit}</button>
                 </div>
               )}
             </div>
           </div>
 
-          <FieldRow label="اسم القاعة" field="hallName" value={hallName} setter={setHallName} editField={editField} temp={temp} setTemp={setTemp} startEdit={startEdit} saveField={saveField}/>
-          <FieldRow label="رقم الهاتف" field="hallPhone" value={hallPhone} setter={setHallPhone} ltr editField={editField} temp={temp} setTemp={setTemp} startEdit={startEdit} saveField={saveField}/>
-          <FieldRow label="العنوان" field="hallAddress" value={hallAddress} setter={setHallAddress} editField={editField} temp={temp} setTemp={setTemp} startEdit={startEdit} saveField={saveField}/>
-          <FieldRow label="الوصف (يظهر تحت اسم القاعة)" field="tagline" value={tagline} setter={setTagline} editField={editField} temp={temp} setTemp={setTemp} startEdit={startEdit} saveField={saveField}/>
+          <FieldRow label={t.hallNameLabel} field="hallName" value={hallName} setter={setHallName} editField={editField} temp={temp} setTemp={setTemp} startEdit={startEdit} saveField={saveField} t={t}/>
+          <FieldRow label={t.hallPhoneLabel} field="hallPhone" value={hallPhone} setter={setHallPhone} ltr editField={editField} temp={temp} setTemp={setTemp} startEdit={startEdit} saveField={saveField} t={t}/>
+          <FieldRow label={t.hallAddressLabel} field="hallAddress" value={hallAddress} setter={setHallAddress} editField={editField} temp={temp} setTemp={setTemp} startEdit={startEdit} saveField={saveField} t={t}/>
+          <FieldRow label={t.taglineLabel} field="tagline" value={tagline} setter={setTagline} editField={editField} temp={temp} setTemp={setTemp} startEdit={startEdit} saveField={saveField} t={t}/>
         </div>
       </div>
 
       <div className="settings-group">
-        <h4>التفضيلات</h4>
+        <h4>{t.preferencesTitle}</h4>
         <div className="settings-card" style={{padding:16}}>
-          <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:8}}>اللغة</label>
+          <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:8}}>{t.languageLabel}</label>
           <div className="lang-pills">
             <button className={lang==='en'?'active':''} onClick={()=>onLangChange('en')}>En</button>
             <button className={lang==='fr'?'active':''} onClick={()=>onLangChange('fr')}>Fr</button>
@@ -1895,28 +2061,28 @@ function SettingsPage({ uid, hallName, setHallName, hallPhone, setHallPhone, hal
       </div>
 
       <div className="settings-group">
-        <h4>كلمة المرور</h4>
+        <h4>{t.passwordSectionTitle}</h4>
         <div className="settings-card" style={{padding:16}}>
           <button className="btn-edit-light" style={{width:'100%', padding:'13px'}} onClick={async()=>{
-            try{ await auth.sendPasswordResetEmail(auth.currentUser.email); setResetMsg({type:'ok', text:'تم إرسال بريد إعادة التعيين!'}); }
-            catch(e){ setResetMsg({type:'error', text:'تعذّر الإرسال. حاول مجددًا.'}); }
+            try{ await auth.sendPasswordResetEmail(auth.currentUser.email); setResetMsg({type:'ok', text:t.resetSentMsg}); }
+            catch(e){ setResetMsg({type:'error', text:t.resetFailedMsg}); }
             setTimeout(()=>setResetMsg(null), 3500);
-          }}>إرسال رابط إعادة تعيين كلمة المرور</button>
+          }}>{t.sendResetLinkBtn}</button>
           {resetMsg && (
             <div className={resetMsg.type==='ok' ? 'form-success' : 'form-error'} style={{marginTop:10, marginBottom:0}}>{resetMsg.text}</div>
           )}
         </div>
       </div>
       <div className="settings-group">
-        <h4>الحساب</h4>
+        <h4>{t.accountSectionTitle}</h4>
         <div className="settings-card" style={{padding:16, display:'flex', flexDirection:'column', gap:14, marginBottom:10}}>
           <div>
-            <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:5}}>البريد الإلكتروني</label>
+            <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:5}}>{t.emailLabel}</label>
             <div style={{fontSize:'.85rem', color:'var(--ink-muted)'}}>{auth.currentUser?.email}</div>
           </div>
-          <FieldRow label="رقم الهاتف (لتسجيل الدخول)" field="phone" value={accountPhone} setter={setAccountPhone} ltr editField={editField} temp={temp} setTemp={setTemp} startEdit={startEdit} saveField={saveField}/>
+          <FieldRow label={t.loginPhoneLabel} field="phone" value={accountPhone} setter={setAccountPhone} ltr editField={editField} temp={temp} setTemp={setTemp} startEdit={startEdit} saveField={saveField} t={t}/>
         </div>
-        <button className="btn-edit-light" style={{width:'100%', padding:'13px', color:'var(--coral)', background:'rgba(232,89,143,0.12)'}} onClick={()=>auth.signOut()}>تسجيل الخروج</button>
+        <button className="btn-edit-light" style={{width:'100%', padding:'13px', color:'var(--coral)', background:'rgba(232,89,143,0.12)'}} onClick={()=>auth.signOut()}>{t.logoutBtn}</button>
       </div>
     </div>
   );
@@ -1924,6 +2090,7 @@ function SettingsPage({ uid, hallName, setHallName, hallPhone, setHallPhone, hal
 
 // ── MAIN APP (after login, once account is active) — matches original header/cards/calendar exactly ──
 function MainApp({ uid, userDoc, lang, onLangChange }){
+  const t = APP_T[lang];
   const [page, setPage] = useState('home');
   const [bookings, setBookings] = useState({});
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
@@ -2006,27 +2173,27 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
     <div className="page active" id="page-home">
       <div className="cards" style={{gridTemplateColumns:'1fr 1fr'}}>
         <div className="card">
-          <div className="label">مداخيل حجوزات الشهر</div>
-          <div className="value">{fmtM(monthRevenue)} اوقية</div>
-          <div className="sub">من {monthEntries.length} حجوزات</div>
+          <div className="label">{t.monthBookingsRevenueLabel}</div>
+          <div className="value">{fmtM(monthRevenue)} {t.currency}</div>
+          <div className="sub">{t.fromWord} {monthEntries.length} {t.bookingsCountSuffix}</div>
         </div>
         <div className="card">
-          <div className="label">حجوزات هذا الشهر</div>
+          <div className="label">{t.thisMonthBookingsLabel}</div>
           <div className="value">{monthEntries.length}</div>
-          <div className="sub">{notFullyPaid} غير مكتملة الدفع</div>
+          <div className="sub">{notFullyPaid} {t.incompletePaymentSuffix}</div>
         </div>
       </div>
 
       <div className="panel">
         <div className="cal-head">
-          <h2>{MONTH_NAMES[currentMonth]} {currentYear}</h2>
+          <h2>{t.months[currentMonth]} {currentYear}</h2>
           <div className="cal-nav">
-            <button onClick={prevMonth} aria-label="الشهر السابق">‹</button>
-            <button onClick={nextMonth} aria-label="الشهر التالي">›</button>
+            <button onClick={prevMonth} aria-label={t.prevMonthAria}>‹</button>
+            <button onClick={nextMonth} aria-label={t.nextMonthAria}>›</button>
           </div>
         </div>
         <div className="weekdays">
-          <span>أحد</span><span>إثنين</span><span>ثلاثاء</span><span>أربعاء</span><span>خميس</span><span>جمعة</span><span>سبت</span>
+          {t.weekdaysShort.map((wd,i) => <span key={i}>{wd}</span>)}
         </div>
         <div className="days">
           {grid.map((d, i) => {
@@ -2038,11 +2205,11 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
           })}
         </div>
         <div className="legend">
-          <span><i className="free"></i> متاح</span>
-          <span><i className="pending"></i> متبقي مبلغ</span>
-          <span><i className="booked"></i> محجوز</span>
+          <span><i className="free"></i> {t.badgeFree}</span>
+          <span><i className="pending"></i> {t.badgePending}</span>
+          <span><i className="booked"></i> {t.badgeBooked}</span>
         </div>
-        <div className="hint-row">اضغط على أي تاريخ لعرض التفاصيل أو إضافة حجز جديد</div>
+        <div className="hint-row">{t.calendarHint}</div>
       </div>
     </div>
   );
@@ -2055,7 +2222,7 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
   // some Android browsers (broken single-finger scrolling, overlays failing to
   // paint their content). Removed for that reason.
 
-  const WEEKDAY_NAMES = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
+  const WEEKDAY_NAMES = t.weekdaysFull;
 
   const openMonthlyExport = (scope) => {
     const entries = Object.entries(bookings)
@@ -2063,30 +2230,30 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
       .map(([dk,b]) => ({ dk, ...b }))
       .sort((a,b)=>a.dk.localeCompare(b.dk));
     const title = scope === 'all'
-      ? 'جدول المناسبات — كل الأشهر'
-      : (() => { const [y,m]=scope.split('-'); return `جدول المناسبات — ${MONTH_NAMES[parseInt(m,10)-1]} ${y}`; })();
+      ? t.pdfAgendaTitleAll
+      : (() => { const [y,m]=scope.split('-'); return `${t.pdfAgendaTitleMonthPrefix} ${t.months[parseInt(m,10)-1]} ${y}`; })();
     const rows = entries.map(b => {
       const d = new Date(b.dk+'T12:00:00');
       const paid = (b.payments||[]).reduce((a,p)=>a+p.amount,0);
       const status = paid < b.total ? 'pending' : 'booked';
       return `<tr>
-        <td>${d.getDate()} ${MONTH_NAMES[d.getMonth()]}</td>
+        <td>${d.getDate()} ${t.months[d.getMonth()]}</td>
         <td>${escapeHtml(b.clientName)}</td>
         <td><span class="ltr-nums">${escapeHtml(formatPhone(b.phone))}</span></td>
-        <td><span class="status-pill ${status}">محجوز</span></td>
+        <td><span class="status-pill ${status}">${escapeHtml(t.badgeBooked)}</span></td>
       </tr>`;
     }).join('');
     const bodyHtml = `
-      <div class="doc-title"><h2>${escapeHtml(title)}</h2><p>للمشاركة مع حارس القاعة</p></div>
+      <div class="doc-title"><h2>${escapeHtml(title)}</h2><p>${escapeHtml(t.pdfForGuardSubtitle)}</p></div>
       <table>
-        <thead><tr><th>التاريخ</th><th>الزبون</th><th>الهاتف</th><th>الحالة</th></tr></thead>
+        <thead><tr><th>${escapeHtml(t.pdfColDate)}</th><th>${escapeHtml(t.pdfColClient)}</th><th>${escapeHtml(t.pdfColPhone)}</th><th>${escapeHtml(t.pdfColStatus)}</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
       <div class="doc-footer">
-        <span>تم الإصدار بتاريخ ${new Date().toLocaleDateString('en-GB')}</span>
-        <span>قاعتي</span>
+        <span>${escapeHtml(t.pdfIssuedOn)} ${new Date().toLocaleDateString('en-GB')}</span>
+        <span>${escapeHtml(t.brand)}</span>
       </div>`;
-    openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAddress, bodyHtml });
+    openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAddress, bodyHtml, t, lang });
   };
 
   const openEarningsExport = (scope) => {
@@ -2099,31 +2266,31 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
       .sort((a,b)=>(a.date||'').localeCompare(b.date||''));
     const grandTotal = filtered.reduce((s,p)=>s+p.amount, 0);
     const title = scope === 'all'
-      ? 'تقرير الأرباح — كل الأشهر'
-      : (() => { const [y,m]=scope.split('-'); return `تقرير الأرباح — ${MONTH_NAMES[parseInt(m,10)-1]} ${y}`; })();
+      ? t.pdfEarningsTitleAll
+      : (() => { const [y,m]=scope.split('-'); return `${t.pdfEarningsTitleMonthPrefix} ${t.months[parseInt(m,10)-1]} ${y}`; })();
     const rows = filtered.map((p,i) => {
       const d = new Date(p.date+'T12:00:00');
       return `<tr>
-        <td>${d.getDate()} ${MONTH_NAMES[d.getMonth()]}</td>
+        <td>${d.getDate()} ${t.months[d.getMonth()]}</td>
         <td>${escapeHtml(p.clientName)}</td>
-        <td>${p.amount.toLocaleString('en-US')} اوقية</td>
-        <td>${escapeHtml(p.method || 'نقدا')}</td>
+        <td>${p.amount.toLocaleString('en-US')} ${escapeHtml(t.currency)}</td>
+        <td>${escapeHtml(formatPaymentMethod(p.method, t))}</td>
       </tr>`;
     }).join('');
     const bodyHtml = `
-      <div class="doc-title"><h2>${escapeHtml(title)}</h2><p>${scope==='all'?'من بداية النشاط إلى اليوم':'هذا الشهر فقط'}</p></div>
+      <div class="doc-title"><h2>${escapeHtml(title)}</h2><p>${scope==='all'?escapeHtml(t.pdfSinceStart):escapeHtml(t.pdfThisMonthOnly)}</p></div>
       <table>
-        <thead><tr><th>التاريخ</th><th>الزبون</th><th>المبلغ المدفوع</th><th>طريقة الدفع</th></tr></thead>
+        <thead><tr><th>${escapeHtml(t.pdfColDate)}</th><th>${escapeHtml(t.pdfColClient)}</th><th>${escapeHtml(t.pdfColAmountPaid)}</th><th>${escapeHtml(t.pdfColPaymentMethod)}</th></tr></thead>
         <tbody>${rows}</tbody>
       </table>
       <div style="display:flex; justify-content:space-between; padding:14px 8px; margin-top:6px; border-top:2px solid #E3E1F2; font-weight:800;">
-        <span>${scope==='all'?'المجموع الكلي':'مجموع الشهر'}</span><span>${grandTotal.toLocaleString('en-US')} اوقية</span>
+        <span>${scope==='all'?escapeHtml(t.pdfGrandTotal):escapeHtml(t.pdfMonthTotal)}</span><span>${grandTotal.toLocaleString('en-US')} ${escapeHtml(t.currency)}</span>
       </div>
       <div class="doc-footer">
-        <span>تم الإصدار بتاريخ ${new Date().toLocaleDateString('en-GB')}</span>
-        <span>قاعتي</span>
+        <span>${escapeHtml(t.pdfIssuedOn)} ${new Date().toLocaleDateString('en-GB')}</span>
+        <span>${escapeHtml(t.brand)}</span>
       </div>`;
-    openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAddress, bodyHtml });
+    openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAddress, bodyHtml, t, lang });
   };
 
   const openDailyExport = (dateKey) => {
@@ -2132,18 +2299,18 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
     const d = new Date(dateKey+'T12:00:00');
     const paid = (dayData.payments||[]).reduce((a,p)=>a+p.amount,0);
     const status = paid < dayData.total ? 'pending' : 'booked';
-    const title = 'تصريح دخول لليوم';
+    const title = t.pdfDailyPermitTitle;
     const bodyHtml = `
       <div class="slip">
-        <div class="authorize">تصريح دخول لليوم</div>
-        <div class="date-big">${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}</div>
+        <div class="authorize">${escapeHtml(t.pdfDailyPermitTitle)}</div>
+        <div class="date-big">${d.getDate()} ${t.months[d.getMonth()]} ${d.getFullYear()}</div>
         <div class="weekday">${WEEKDAY_NAMES[d.getDay()]}</div>
-        <div class="slip-row"><span>الزبون</span><span>${escapeHtml(dayData.clientName)}</span></div>
-        <div class="slip-row"><span>الهاتف</span><span class="ltr-nums">${escapeHtml(formatPhone(dayData.phone))}</span></div>
-        <div class="badge-big ${status}">${status==='pending'?'متبقي مبلغ':'محجوز'}</div>
-        <div class="note">يرجى إبراز هذا التصريح لحارس القاعة عند الوصول يوم المناسبة.</div>
+        <div class="slip-row"><span>${escapeHtml(t.pdfColClient)}</span><span>${escapeHtml(dayData.clientName)}</span></div>
+        <div class="slip-row"><span>${escapeHtml(t.pdfColPhone)}</span><span class="ltr-nums">${escapeHtml(formatPhone(dayData.phone))}</span></div>
+        <div class="badge-big ${status}">${status==='pending'?escapeHtml(t.badgePending):escapeHtml(t.badgeBooked)}</div>
+        <div class="note">${escapeHtml(t.pdfPermitNote)}</div>
       </div>`;
-    openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAddress, bodyHtml });
+    openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAddress, bodyHtml, t, lang });
   };
 
   const openReceipt = (dateKey, paymentIndex, dayDataOverride) => {
@@ -2155,29 +2322,29 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
     const paidSoFar = (dayData.payments||[]).reduce((a,x)=>a+x.amount,0);
     const remaining = dayData.total - paidSoFar;
     const isFull = remaining <= 0;
-    const title = 'إيصال دفع';
+    const title = t.pdfReceiptTitle;
     const bodyHtml = `
-      <div class="doc-title"><h2>إيصال دفع</h2><p>${escapeHtml(p.date)}</p></div>
+      <div class="doc-title"><h2>${escapeHtml(t.pdfReceiptTitle)}</h2><p>${escapeHtml(p.date)}</p></div>
       <div>
-        <div class="slip-row"><span>الزبون</span><span>${escapeHtml(dayData.clientName)}</span></div>
-        <div class="slip-row"><span>الهاتف</span><span class="ltr-nums">${escapeHtml(formatPhone(dayData.phone))}</span></div>
-        <div class="slip-row"><span>تاريخ المناسبة</span><span>${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}</span></div>
-        <div class="slip-row"><span>طريقة الدفع</span><span>${escapeHtml(p.method || 'نقدا')}</span></div>
-        <div class="slip-row"><span>المبلغ المدفوع (هذه الدفعة)</span><span>${p.amount.toLocaleString('en-US')} اوقية</span></div>
-        <div class="slip-row"><span>المبلغ الإجمالي للحجز</span><span>${dayData.total.toLocaleString('en-US')} اوقية</span></div>
-        <div class="slip-row"><span>مجموع المدفوع لحد الآن</span><span>${paidSoFar.toLocaleString('en-US')} اوقية</span></div>
+        <div class="slip-row"><span>${escapeHtml(t.pdfColClient)}</span><span>${escapeHtml(dayData.clientName)}</span></div>
+        <div class="slip-row"><span>${escapeHtml(t.pdfColPhone)}</span><span class="ltr-nums">${escapeHtml(formatPhone(dayData.phone))}</span></div>
+        <div class="slip-row"><span>${escapeHtml(t.pdfEventDate)}</span><span>${d.getDate()} ${t.months[d.getMonth()]} ${d.getFullYear()}</span></div>
+        <div class="slip-row"><span>${escapeHtml(t.pdfColPaymentMethod)}</span><span>${escapeHtml(formatPaymentMethod(p.method, t))}</span></div>
+        <div class="slip-row"><span>${escapeHtml(t.pdfAmountPaidThisPayment)}</span><span>${p.amount.toLocaleString('en-US')} ${escapeHtml(t.currency)}</span></div>
+        <div class="slip-row"><span>${escapeHtml(t.pdfBookingTotalAmount)}</span><span>${dayData.total.toLocaleString('en-US')} ${escapeHtml(t.currency)}</span></div>
+        <div class="slip-row"><span>${escapeHtml(t.pdfTotalPaidSoFar)}</span><span>${paidSoFar.toLocaleString('en-US')} ${escapeHtml(t.currency)}</span></div>
         <div class="receipt-highlight ${isFull?'paid-full':'paid-partial'}">
-          <div class="rh-label">${isFull?'تم سداد المبلغ بالكامل':'المبلغ المتبقي'}</div>
-          ${!isFull ? `<div class="rh-value">${remaining.toLocaleString('en-US')} اوقية</div>` : ''}
+          <div class="rh-label">${isFull?escapeHtml(t.pdfFullyPaid):escapeHtml(t.pdfRemainingAmount)}</div>
+          ${!isFull ? `<div class="rh-value">${remaining.toLocaleString('en-US')} ${escapeHtml(t.currency)}</div>` : ''}
         </div>
       </div>`;
-    openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAddress, bodyHtml });
+    openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAddress, bodyHtml, t, lang });
   };
 
   const dateLabelFor = (dk) => {
     if(!dk) return '';
     const d = new Date(dk+'T12:00:00');
-    return `${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}`;
+    return `${d.getDate()} ${t.months[d.getMonth()]} ${d.getFullYear()}`;
   };
 
   return (
@@ -2192,22 +2359,22 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
 
       <main>
         {page === 'home' && <HomePage/>}
-        {page === 'agenda' && <AgendaPage bookings={bookings} onSelectDay={setSelectedDay} onExport={openMonthlyExport}/>}
-        {page === 'earnings' && <EarningsPage bookings={bookings} onSelectDay={setSelectedDay} onExport={openEarningsExport}/>}
-        {page === 'settings' && <SettingsPage uid={uid} hallName={hallName} setHallName={setHallName} hallPhone={hallPhone} setHallPhone={setHallPhone} hallAddress={hallAddress} setHallAddress={setHallAddress} tagline={tagline} setTagline={setTagline} badgeLetter={badgeLetter} setBadgeLetter={setBadgeLetter} accountPhone={accountPhone} setAccountPhone={setAccountPhone} lang={lang} onLangChange={onLangChange}/>}
+        {page === 'agenda' && <AgendaPage bookings={bookings} onSelectDay={setSelectedDay} onExport={openMonthlyExport} t={t}/>}
+        {page === 'earnings' && <EarningsPage bookings={bookings} onSelectDay={setSelectedDay} onExport={openEarningsExport} t={t}/>}
+        {page === 'settings' && <SettingsPage uid={uid} hallName={hallName} setHallName={setHallName} hallPhone={hallPhone} setHallPhone={setHallPhone} hallAddress={hallAddress} setHallAddress={setHallAddress} tagline={tagline} setTagline={setTagline} badgeLetter={badgeLetter} setBadgeLetter={setBadgeLetter} accountPhone={accountPhone} setAccountPhone={setAccountPhone} lang={lang} onLangChange={onLangChange} t={t}/>}
       </main>
 
       <div className="bottom-nav">
-        <button className={page==='home'?'active':''} onClick={()=>setPage('home')} aria-label="الرئيسية">
+        <button className={page==='home'?'active':''} onClick={()=>setPage('home')} aria-label={t.navHome}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 11l9-8 9 8M5 10v10h14V10"/></svg>
         </button>
-        <button className={page==='agenda'?'active':''} onClick={()=>setPage('agenda')} aria-label="الأجندة">
+        <button className={page==='agenda'?'active':''} onClick={()=>setPage('agenda')} aria-label={t.navAgenda}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg>
         </button>
-        <button className={page==='earnings'?'active':''} onClick={()=>setPage('earnings')} aria-label="المداخيل">
+        <button className={page==='earnings'?'active':''} onClick={()=>setPage('earnings')} aria-label={t.navEarnings}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v10M9.5 9.5h3.2a1.8 1.8 0 010 3.6h-2a1.8 1.8 0 000 3.6h3.3"/></svg>
         </button>
-        <button className={page==='settings'?'active':''} onClick={()=>setPage('settings')} aria-label="الإعدادات">
+        <button className={page==='settings'?'active':''} onClick={()=>setPage('settings')} aria-label={t.navSettings}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1 1.55V21a2 2 0 11-4 0v-.09a1.7 1.7 0 00-1-1.55 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.7 1.7 0 00.34-1.87 1.7 1.7 0 00-1.55-1H3a2 2 0 110-4h.09a1.7 1.7 0 001.55-1 1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06a1.7 1.7 0 001.87.34H9a1.7 1.7 0 001-1.55V3a2 2 0 114 0v.09a1.7 1.7 0 001 1.55 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.34 1.87V9a1.7 1.7 0 001.55 1H21a2 2 0 110 4h-.09a1.7 1.7 0 00-1.55 1z"/></svg>
         </button>
       </div>
@@ -2224,6 +2391,7 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
           onEditBooking={editBooking}
           onShare={()=>openDailyExport(selectedDay)}
           onOpenReceipt={(idx, dayDataOverride)=>openReceipt(selectedDay, idx, dayDataOverride)}
+          t={t}
         />
       )}
     </>
@@ -2231,20 +2399,22 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
 }
 
 // ── PENDING GATE (account created but not yet activated by admin) ───────
-function PendingGate({ whatsapp }){
+function PendingGate({ whatsapp, t }){
   return (
     <div className="login-screen">
       <div className="login-card">
         <div className="login-panel active">
           <div className="login-form" style={{textAlign:'center'}}>
             <div style={{fontSize:'2.4rem', marginBottom:6}}>⏳</div>
-            <h3 style={{fontSize:'1.05rem', fontWeight:800, color:'var(--teal-dark)', marginBottom:8}}>الحساب في انتظار التفعيل</h3>
-            <div className="login-note">تم إنشاء حسابك. سيتم تفعيله خلال 24 ساعة بعد تأكيد الدفع.</div>
-            <div style={{background:'var(--coral-soft)', borderRadius:16, padding:16, marginBottom:16}}>
-              <div style={{fontSize:'.76rem', color:'var(--coral)', fontWeight:700, marginBottom:4}}>تواصل معنا عبر واتساب لتفعيل اشتراكك</div>
-              <div style={{fontSize:'1.05rem', fontWeight:800, color:'var(--ink)'}}>{whatsapp}</div>
-            </div>
-            <button type="button" className="btn-secondary" style={{width:'100%'}} onClick={()=>auth.signOut()}>تسجيل الخروج</button>
+            <h3 style={{fontSize:'1.05rem', fontWeight:800, color:'var(--teal-dark)', marginBottom:8}}>{t.pendingTitle}</h3>
+            <div className="login-note">{t.pendingDesc}</div>
+            {whatsapp && (
+              <div style={{background:'var(--coral-soft)', borderRadius:16, padding:16, marginBottom:16}}>
+                <div style={{fontSize:'.76rem', color:'var(--coral)', fontWeight:700, marginBottom:4}}>{t.pendingContact}</div>
+                <div style={{fontSize:'1.05rem', fontWeight:800, color:'var(--ink)'}}>{whatsapp}</div>
+              </div>
+            )}
+            <button type="button" className="btn-secondary" style={{width:'100%'}} onClick={()=>auth.signOut()}>{t.logoutBtn}</button>
           </div>
         </div>
       </div>
@@ -2255,9 +2425,10 @@ function PendingGate({ whatsapp }){
 // ── ROOT APP: routes between Auth / Pending / MainApp based on Firebase state ─
 function App(){
   const [authUser, setAuthUser] = useState(undefined);
-  const [userDoc, setUserDoc] = useState(null);
-  const [whatsapp, setWhatsapp] = useState('+222 XX XX XX XX');
+  const [userDoc, setUserDoc] = useState(undefined); // undefined = still loading, null = no account found
+  const [whatsapp, setWhatsapp] = useState(''); // empty until Firestore resolves — avoids flashing a fake placeholder number
   const [lang, setLang] = useState(() => localStorage.getItem('qaaty_lang') || 'ar');
+  const t = APP_T[lang];
 
   // Remember whichever language was last chosen — closing the app and
   // reopening it later should pick up right where the person left off,
@@ -2269,12 +2440,14 @@ function App(){
   useEffect(() => {
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr';
     document.documentElement.lang = lang;
+    document.title = t.brand;
   }, [lang]);
 
   useEffect(() => {
-    db.collection('settings').doc('contact').get().then(snap => {
+    const unsub = db.collection('settings').doc('contact').onSnapshot(snap => {
       if(snap.exists && snap.data().whatsapp) setWhatsapp(snap.data().whatsapp);
-    }).catch(()=>{});
+    }, ()=>{});
+    return unsub;
   }, []);
 
   useEffect(() => {
@@ -2294,17 +2467,19 @@ function App(){
   }, []);
 
   // While Firebase is still checking for a persisted session (authUser is
-  // undefined), show a brief spinner instead of the login form — otherwise
-  // the login screen flashes on every open even when already signed in,
-  // which reads as "being forced to sign in again" though nothing was reset.
-  if(authUser === undefined) return (
+  // undefined), OR the user doc hasn't loaded yet right after signing in
+  // (userDoc is undefined), show the same brief spinner instead of the login
+  // form or the pending screen — otherwise either one flashes momentarily
+  // even when the account is already active, which reads as a real problem
+  // even though nothing was actually reset.
+  if(authUser === undefined || (authUser && userDoc === undefined)) return (
     <div style={{minHeight:'100vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16, background:'linear-gradient(155deg, var(--mint-1) 0%, var(--mint-2) 45%, var(--teal-3) 100%)'}}>
       <div style={{width:40, height:40, border:'3px solid var(--teal-deep)', borderTopColor:'transparent', borderRadius:'50%', animation:'spin 0.8s linear infinite'}}></div>
-      <div style={{color:'var(--teal-dark)', fontSize:16, fontWeight:800}}>قاعتي</div>
+      <div style={{color:'var(--teal-dark)', fontSize:16, fontWeight:800}}>{t.brand}</div>
     </div>
   );
   if(!authUser) return <AuthScreen lang={lang} onLangChange={onLangChange}/>;
-  if(!userDoc || !userDoc.active) return <PendingGate whatsapp={whatsapp}/>;
+  if(!userDoc || !userDoc.active) return <PendingGate whatsapp={whatsapp} t={t}/>;
   return <MainApp uid={authUser.uid} userDoc={userDoc} lang={lang} onLangChange={onLangChange}/>;
 }
 
