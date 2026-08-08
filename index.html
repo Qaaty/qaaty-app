@@ -814,6 +814,7 @@ const LOGIN_T = {
     guideStep1:'١. أنشئ/ي حسابك', guideStep2:'٢. تواصل/ي معنا عبر واتساب', guideStep3:'٣. فعّل/ي حسابك وابدأ/ي الحجز!',
     contactLabel:'📞 تحتاج/ين إلى الوصول؟ تواصل/ي معنا!',
     tabLogin:'تسجيل الدخول', tabSignup:'حساب جديد',
+    loginViaPhone:'الهاتف', loginViaEmail:'البريد الإلكتروني',
     fieldPhone:'رقم الهاتف', fieldPassword:'كلمة المرور', fieldHallName:'اسم القاعة',
     fieldEmail:'البريد الإلكتروني', fieldPasswordConfirm:'تأكيد كلمة المرور',
     btnLogin:'تسجيل الدخول', btnSignup:'إنشاء الحساب', forgotLink:'نسيت كلمة المرور؟',
@@ -833,6 +834,7 @@ const LOGIN_T = {
     guideStep1:'1. Créez votre compte', guideStep2:'2. Contactez-nous sur WhatsApp', guideStep3:'3. Activez et commencez à réserver !',
     contactLabel:"📞 Besoin d'accès ? Contactez-nous !",
     tabLogin:'Connexion', tabSignup:'Créer un compte',
+    loginViaPhone:'Téléphone', loginViaEmail:'Email',
     fieldPhone:'Numéro de téléphone', fieldPassword:'Mot de passe', fieldHallName:'Nom de la salle',
     fieldEmail:'Email', fieldPasswordConfirm:'Confirmer le mot de passe',
     btnLogin:'Se connecter', btnSignup:'Créer le compte', forgotLink:'Mot de passe oublié ?',
@@ -852,6 +854,7 @@ const LOGIN_T = {
     guideStep1:'1. Create your account', guideStep2:'2. Contact us on WhatsApp', guideStep3:'3. Get activated & start booking!',
     contactLabel:'📞 Need access? Contact us!',
     tabLogin:'Sign In', tabSignup:'Sign Up',
+    loginViaPhone:'Phone', loginViaEmail:'Email',
     fieldPhone:'Phone number', fieldPassword:'Password', fieldHallName:'Hall name',
     fieldEmail:'Email', fieldPasswordConfirm:'Confirm password',
     btnLogin:'Sign In', btnSignup:'Create Account', forgotLink:'Forgot password?',
@@ -873,7 +876,9 @@ const LOGIN_T = {
 function AuthScreen({ lang, onLangChange }){
   const [panel, setPanel] = useState('auth'); // auth | pending | forgot
   const [mode, setMode] = useState('login'); // login | signup
+  const [loginMethod, setLoginMethod] = useState('phone'); // phone | email
   const [loginPhone, setLoginPhone] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
   const [showLoginPass, setShowLoginPass] = useState(false);
   const [signupHallName, setSignupHallName] = useState('');
@@ -904,19 +909,30 @@ function AuthScreen({ lang, onLangChange }){
 
   const handleLogin = async () => {
     setError('');
-    if(!loginPhone.trim() || !loginPassword) return setError(t.errorGeneral);
-    setLoading(true);
-    try {
-      // Phone is the identifier users type, but Firebase Auth needs an email under the hood.
-      // We look up the account's email by phone number in Firestore first.
-      const q = await db.collection('users').where('phone', '==', loginPhone.trim()).limit(1).get();
-      if(q.empty){ setError(t.errorWrong); setLoading(false); return; }
-      const userEmail = q.docs[0].data().email;
-      await auth.signInWithEmailAndPassword(userEmail, loginPassword);
-    } catch(e) {
-      setError(t.errorWrong);
+    if(loginMethod === 'phone'){
+      if(!loginPhone.trim() || !loginPassword) return setError(t.errorGeneral);
+      setLoading(true);
+      try {
+        // Phone is the identifier users type, but Firebase Auth needs an email under the hood.
+        // We look up the account's email by phone number in Firestore first.
+        const q = await db.collection('users').where('phone', '==', loginPhone.trim()).limit(1).get();
+        if(q.empty){ setError(t.errorWrong); setLoading(false); return; }
+        const userEmail = q.docs[0].data().email;
+        await auth.signInWithEmailAndPassword(userEmail, loginPassword);
+      } catch(e) {
+        setError(t.errorWrong);
+      }
+      setLoading(false);
+    } else {
+      if(!loginEmail.trim() || !loginPassword) return setError(t.errorGeneral);
+      setLoading(true);
+      try {
+        await auth.signInWithEmailAndPassword(loginEmail.trim(), loginPassword);
+      } catch(e) {
+        setError(t.errorWrong);
+      }
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleSignup = async () => {
@@ -1043,10 +1059,21 @@ function AuthScreen({ lang, onLangChange }){
 
           {mode === 'login' ? (
             <form className="login-form" onSubmit={e=>{e.preventDefault();handleLogin();}}>
-              <div className="field">
-                <label>{t.fieldPhone}</label>
-                <input style={inp} type="tel" value={loginPhone} onChange={e=>setLoginPhone(e.target.value)} required/>
+              <div className="login-tabs" style={{marginBottom:14}}>
+                <button type="button" className={loginMethod==='phone'?'active':''} onClick={()=>{setLoginMethod('phone');setError('');}}>{t.loginViaPhone}</button>
+                <button type="button" className={loginMethod==='email'?'active':''} onClick={()=>{setLoginMethod('email');setError('');}}>{t.loginViaEmail}</button>
               </div>
+              {loginMethod === 'phone' ? (
+                <div className="field">
+                  <label>{t.fieldPhone}</label>
+                  <input style={inp} type="tel" value={loginPhone} onChange={e=>setLoginPhone(e.target.value)} required/>
+                </div>
+              ) : (
+                <div className="field">
+                  <label>{t.fieldEmail}</label>
+                  <input style={inp} type="email" value={loginEmail} onChange={e=>setLoginEmail(e.target.value)} required/>
+                </div>
+              )}
               <div className="field">
                 <label>{t.fieldPassword}</label>
                 <div style={{position:'relative'}}>
@@ -1649,6 +1676,117 @@ function EarningsPage({ bookings, onSelectDay, onExport }){
   );
 }
 
+// ── SETTINGS FIELD ROW (top-level so it keeps a stable identity across
+// SettingsPage re-renders — being redefined on every keystroke was what
+// caused the input to lose focus after a single character) ──
+function FieldRow({ label, field, value, setter, ltr, editField, temp, setTemp, startEdit, saveField }){
+  return (
+    <div>
+      <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:5}}>{label}</label>
+      {editField === field ? (
+        <div style={{display:'flex', gap:8}}>
+          <div className="field" style={{flex:1, marginBottom:0}}>
+            <input value={temp} onChange={e=>setTemp(e.target.value)} style={ltr?{direction:'ltr', textAlign:'left'}:{}}/>
+          </div>
+          <button className="btn-save-light" onClick={()=>saveField(field, setter)}>حفظ</button>
+        </div>
+      ) : (
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+          <span className={ltr?'ltr-nums':''} style={{fontWeight:700}}>{value}</span>
+          <button className="btn-edit-light" onClick={()=>startEdit(field, value)}>تعديل</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── SETTINGS PAGE (moved to top-level so its edit state survives MainApp
+// re-renders, same as Agenda/Earnings) ──
+function SettingsPage({ uid, hallName, setHallName, hallPhone, setHallPhone, hallAddress, setHallAddress, tagline, setTagline, badgeLetter, setBadgeLetter, accountPhone, setAccountPhone, lang, onLangChange }){
+  const [editField, setEditField] = useState(null); // which field is currently being edited
+  const [temp, setTemp] = useState('');
+  const [resetMsg, setResetMsg] = useState(null); // {type:'ok'|'error', text}
+
+  const startEdit = (field, currentValue) => { setTemp(currentValue); setEditField(field); };
+  const saveField = async (field, setter) => {
+    setter(temp);
+    await db.collection('users').doc(uid).update({ [field]: temp });
+    setEditField(null);
+  };
+
+  return (
+    <div className="page active">
+      <div className="settings-group">
+        <h4>معلومات القاعة</h4>
+        <div className="settings-card" style={{padding:16, display:'flex', flexDirection:'column', gap:14}}>
+
+          <div style={{display:'flex', alignItems:'center', gap:12, paddingBottom:14, borderBottom:'1px solid rgba(255,255,255,.4)'}}>
+            <div className="avatar-ring" style={{width:52, height:52, margin:0, fontSize:'1.3rem'}}>{badgeLetter}</div>
+            <div style={{flex:1}}>
+              <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:5}}>الحرف الظاهر في الشعار</label>
+              {editField === 'badgeLetter' ? (
+                <div style={{display:'flex', gap:8}}>
+                  <div className="field" style={{marginBottom:0}}>
+                    <input value={temp} maxLength={1} onChange={e=>setTemp(e.target.value)} style={{width:60, textAlign:'center'}}/>
+                  </div>
+                  <button className="btn-save-light" onClick={()=>saveField('badgeLetter', setBadgeLetter)}>حفظ</button>
+                </div>
+              ) : (
+                <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                  <span style={{fontWeight:800}}>{badgeLetter}</span>
+                  <button className="btn-edit-light" onClick={()=>startEdit('badgeLetter', badgeLetter)}>تعديل</button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <FieldRow label="اسم القاعة" field="hallName" value={hallName} setter={setHallName} editField={editField} temp={temp} setTemp={setTemp} startEdit={startEdit} saveField={saveField}/>
+          <FieldRow label="رقم الهاتف" field="hallPhone" value={hallPhone} setter={setHallPhone} ltr editField={editField} temp={temp} setTemp={setTemp} startEdit={startEdit} saveField={saveField}/>
+          <FieldRow label="العنوان" field="hallAddress" value={hallAddress} setter={setHallAddress} editField={editField} temp={temp} setTemp={setTemp} startEdit={startEdit} saveField={saveField}/>
+          <FieldRow label="الوصف (يظهر تحت اسم القاعة)" field="tagline" value={tagline} setter={setTagline} editField={editField} temp={temp} setTemp={setTemp} startEdit={startEdit} saveField={saveField}/>
+        </div>
+      </div>
+
+      <div className="settings-group">
+        <h4>التفضيلات</h4>
+        <div className="settings-card" style={{padding:16}}>
+          <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:8}}>اللغة</label>
+          <div className="lang-pills">
+            <button className={lang==='en'?'active':''} onClick={()=>onLangChange('en')}>En</button>
+            <button className={lang==='fr'?'active':''} onClick={()=>onLangChange('fr')}>Fr</button>
+            <button className={lang==='ar'?'active':''} onClick={()=>onLangChange('ar')}>ع</button>
+          </div>
+        </div>
+      </div>
+
+      <div className="settings-group">
+        <h4>كلمة المرور</h4>
+        <div className="settings-card" style={{padding:16}}>
+          <button className="btn-edit-light" style={{width:'100%', padding:'13px'}} onClick={async()=>{
+            try{ await auth.sendPasswordResetEmail(auth.currentUser.email); setResetMsg({type:'ok', text:'تم إرسال بريد إعادة التعيين!'}); }
+            catch(e){ setResetMsg({type:'error', text:'تعذّر الإرسال. حاول مجددًا.'}); }
+            setTimeout(()=>setResetMsg(null), 3500);
+          }}>إرسال رابط إعادة تعيين كلمة المرور</button>
+          {resetMsg && (
+            <div className={resetMsg.type==='ok' ? 'form-success' : 'form-error'} style={{marginTop:10, marginBottom:0}}>{resetMsg.text}</div>
+          )}
+        </div>
+      </div>
+      <div className="settings-group">
+        <h4>الحساب</h4>
+        <div className="settings-card" style={{padding:16, display:'flex', flexDirection:'column', gap:14, marginBottom:10}}>
+          <div>
+            <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:5}}>البريد الإلكتروني</label>
+            <div style={{fontSize:'.85rem', color:'var(--ink-muted)'}}>{auth.currentUser?.email}</div>
+          </div>
+          <FieldRow label="رقم الهاتف (لتسجيل الدخول)" field="phone" value={accountPhone} setter={setAccountPhone} ltr editField={editField} temp={temp} setTemp={setTemp} startEdit={startEdit} saveField={saveField}/>
+        </div>
+        <button className="btn-edit-light" style={{width:'100%', padding:'13px', color:'var(--coral)', background:'rgba(232,89,143,0.12)'}} onClick={()=>auth.signOut()}>تسجيل الخروج</button>
+      </div>
+    </div>
+  );
+}
+
 // ── MAIN APP (after login, once account is active) — matches original header/cards/calendar exactly ──
 function MainApp({ uid, userDoc, lang, onLangChange }){
   const [page, setPage] = useState('home');
@@ -1658,6 +1796,7 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
   const [selectedDay, setSelectedDay] = useState(null);
   const [hallName, setHallName] = useState(userDoc.hallName || 'قاعتي');
   const [hallPhone, setHallPhone] = useState(userDoc.hallPhone || userDoc.phone || '');
+  const [accountPhone, setAccountPhone] = useState(userDoc.phone || '');
   const [hallAddress, setHallAddress] = useState(userDoc.hallAddress || '');
   const [tagline, setTagline] = useState(userDoc.tagline || 'لتنظيم الأفراح والمناسبات');
   const [badgeLetter, setBadgeLetter] = useState(userDoc.badgeLetter || (userDoc.hallName || 'ق').trim().charAt(0));
@@ -1976,106 +2115,6 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
     );
   };
 
-  const SettingsPage = () => {
-    const [editField, setEditField] = useState(null); // which field is currently being edited
-    const [temp, setTemp] = useState('');
-    const [resetMsg, setResetMsg] = useState(null); // {type:'ok'|'error', text}
-
-    const startEdit = (field, currentValue) => { setTemp(currentValue); setEditField(field); };
-    const saveField = async (field, setter) => {
-      setter(temp);
-      await db.collection('users').doc(uid).update({ [field]: temp });
-      setEditField(null);
-    };
-
-    const FieldRow = ({ label, field, value, setter, ltr }) => (
-      <div>
-        <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:5}}>{label}</label>
-        {editField === field ? (
-          <div style={{display:'flex', gap:8}}>
-            <div className="field" style={{flex:1, marginBottom:0}}>
-              <input value={temp} onChange={e=>setTemp(e.target.value)} style={ltr?{direction:'ltr', textAlign:'left'}:{}}/>
-            </div>
-            <button className="btn-save-light" onClick={()=>saveField(field, setter)}>حفظ</button>
-          </div>
-        ) : (
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-            <span className={ltr?'ltr-nums':''} style={{fontWeight:700}}>{value}</span>
-            <button className="btn-edit-light" onClick={()=>startEdit(field, value)}>تعديل</button>
-          </div>
-        )}
-      </div>
-    );
-
-    return (
-      <div className="page active">
-        <div className="settings-group">
-          <h4>معلومات القاعة</h4>
-          <div className="settings-card" style={{padding:16, display:'flex', flexDirection:'column', gap:14}}>
-
-            <div style={{display:'flex', alignItems:'center', gap:12, paddingBottom:14, borderBottom:'1px solid rgba(255,255,255,.4)'}}>
-              <div className="avatar-ring" style={{width:52, height:52, margin:0, fontSize:'1.3rem'}}>{badgeLetter}</div>
-              <div style={{flex:1}}>
-                <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:5}}>الحرف الظاهر في الشعار</label>
-                {editField === 'badgeLetter' ? (
-                  <div style={{display:'flex', gap:8}}>
-                    <div className="field" style={{marginBottom:0}}>
-                      <input value={temp} maxLength={1} onChange={e=>setTemp(e.target.value)} style={{width:60, textAlign:'center'}}/>
-                    </div>
-                    <button className="btn-save-light" onClick={()=>saveField('badgeLetter', setBadgeLetter)}>حفظ</button>
-                  </div>
-                ) : (
-                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
-                    <span style={{fontWeight:800}}>{badgeLetter}</span>
-                    <button className="btn-edit-light" onClick={()=>startEdit('badgeLetter', badgeLetter)}>تعديل</button>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <FieldRow label="اسم القاعة" field="hallName" value={hallName} setter={setHallName}/>
-            <FieldRow label="رقم الهاتف" field="hallPhone" value={hallPhone} setter={setHallPhone} ltr/>
-            <FieldRow label="العنوان" field="hallAddress" value={hallAddress} setter={setHallAddress}/>
-            <FieldRow label="الوصف (يظهر تحت اسم القاعة)" field="tagline" value={tagline} setter={setTagline}/>
-          </div>
-        </div>
-
-        <div className="settings-group">
-          <h4>التفضيلات</h4>
-          <div className="settings-card" style={{padding:16}}>
-            <label style={{display:'block', fontSize:'.72rem', fontWeight:700, color:'var(--ink-muted)', marginBottom:8}}>اللغة</label>
-            <div className="lang-pills">
-              <button className={lang==='en'?'active':''} onClick={()=>onLangChange('en')}>En</button>
-              <button className={lang==='fr'?'active':''} onClick={()=>onLangChange('fr')}>Fr</button>
-              <button className={lang==='ar'?'active':''} onClick={()=>onLangChange('ar')}>ع</button>
-            </div>
-          </div>
-        </div>
-
-        <div className="settings-group">
-          <h4>كلمة المرور</h4>
-          <div className="settings-card" style={{padding:16}}>
-            <button className="btn-edit-light" style={{width:'100%', padding:'13px'}} onClick={async()=>{
-              try{ await auth.sendPasswordResetEmail(auth.currentUser.email); setResetMsg({type:'ok', text:'تم إرسال بريد إعادة التعيين!'}); }
-              catch(e){ setResetMsg({type:'error', text:'تعذّر الإرسال. حاول مجددًا.'}); }
-              setTimeout(()=>setResetMsg(null), 3500);
-            }}>إرسال رابط إعادة تعيين كلمة المرور</button>
-            {resetMsg && (
-              <div className={resetMsg.type==='ok' ? 'form-success' : 'form-error'} style={{marginTop:10, marginBottom:0}}>{resetMsg.text}</div>
-            )}
-          </div>
-        </div>
-        <div className="settings-group">
-          <h4>الحساب</h4>
-          <div className="settings-card" style={{padding:16, marginBottom:10}}>
-            <div style={{fontSize:'.85rem', color:'var(--ink-muted)'}}>{auth.currentUser?.email}</div>
-          </div>
-          <button className="btn-edit-light" style={{width:'100%', padding:'13px', color:'var(--coral)', background:'rgba(232,89,143,0.12)'}} onClick={()=>auth.signOut()}>تسجيل الخروج</button>
-        </div>
-      </div>
-    );
-  };
-
   const dateLabelFor = (dk) => {
     if(!dk) return '';
     const d = new Date(dk+'T12:00:00');
@@ -2096,7 +2135,7 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
         {page === 'home' && <HomePage/>}
         {page === 'agenda' && <AgendaPage bookings={bookings} onSelectDay={setSelectedDay} onExport={setMonthlyExportScope}/>}
         {page === 'earnings' && <EarningsPage bookings={bookings} onSelectDay={setSelectedDay} onExport={setEarningsExportScope}/>}
-        {page === 'settings' && <SettingsPage/>}
+        {page === 'settings' && <SettingsPage uid={uid} hallName={hallName} setHallName={setHallName} hallPhone={hallPhone} setHallPhone={setHallPhone} hallAddress={hallAddress} setHallAddress={setHallAddress} tagline={tagline} setTagline={setTagline} badgeLetter={badgeLetter} setBadgeLetter={setBadgeLetter} accountPhone={accountPhone} setAccountPhone={setAccountPhone} lang={lang} onLangChange={onLangChange}/>}
       </main>
 
       <div className="bottom-nav">
