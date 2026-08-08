@@ -141,6 +141,21 @@
   }
   .admin-tabs button.active{ background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); color:#fff; }
 
+  .lang-switch{ display:flex; gap:6px; }
+  .lang-switch button{
+    border:1px solid var(--glass-border); background:var(--glass);
+    font-family:'Tajawal', sans-serif; font-weight:800; font-size:.72rem;
+    color:var(--ink-muted); padding:6px 12px; border-radius:20px; cursor:pointer;
+  }
+  .lang-switch button.active{ background:var(--teal-deep); color:#fff; border-color:var(--teal-deep); }
+  .login-lang-switch{ display:flex; gap:8px; justify-content:center; margin-bottom:18px; }
+  .login-lang-switch button{
+    border:1px solid var(--glass-border); background:var(--glass-strong);
+    font-family:'Tajawal', sans-serif; font-weight:800; font-size:.78rem;
+    color:var(--ink-muted); padding:8px 18px; border-radius:20px; cursor:pointer;
+  }
+  .login-lang-switch button.active{ background:var(--teal-deep); color:#fff; border-color:var(--teal-deep); }
+
   .admin-tab-panel{ display:none; }
   .admin-tab-panel.active{ display:block; }
 
@@ -318,6 +333,166 @@ const { useState, useEffect, useMemo } = React;
 // TODO: replace with your real admin email once confirmed
 const ADMIN_EMAIL = 'fatimetousidiboba@gmail.com';
 
+const MONTH_NAMES_AR = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+const MONTH_NAMES_EN = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+const ADMIN_T = {
+  ar: {
+    dir: 'rtl',
+    pageTitle: 'لوحة تحكم المسؤول',
+    months: MONTH_NAMES_AR,
+    // Login
+    loginHeading: 'لوحة تحكم المسؤول',
+    loginSub: 'الوصول مقتصر على حساب المسؤول فقط',
+    previewHintPrefix: 'للمعاينة فقط: اكتب',
+    fieldEmail: 'البريد الإلكتروني',
+    fieldPassword: 'كلمة المرور',
+    loggingIn: 'جارٍ الدخول...',
+    loginBtn: 'تسجيل الدخول',
+    errorNotAuthorized: 'هذا البريد الإلكتروني غير مصرح له بالدخول',
+    errorWrongPassword: 'كلمة المرور غير صحيحة',
+    errorGenericPrefix: 'خطأ',
+    // Panel shell
+    panelTitle: 'لوحة تحكم المسؤول',
+    logout: 'تسجيل الخروج',
+    tabAccounts: 'الحسابات',
+    tabPayments: 'المدفوعات',
+    tabActivity: 'النشاط',
+    tabSettings: 'الإعدادات',
+    // Shared
+    cancel: 'إلغاء',
+    confirm: 'تأكيد',
+    ok: 'حسنًا',
+    all: 'الكل',
+    active: 'نشط',
+    inactive: 'غير نشط',
+    currency: 'اوقية',
+    // Accounts tab
+    statAll: 'الكل',
+    statActive: 'نشط',
+    statPending: 'قيد المراجعة',
+    searchAccountsPlaceholder: 'بحث بالاسم أو البريد الإلكتروني...',
+    statusActive: 'نشط',
+    statusPending: 'قيد المراجعة',
+    confirmDeleteTitle: 'حذف هذا الحساب نهائيًا؟',
+    deleteBtn: 'حذف',
+    resetSentTitle: 'تم الإرسال!',
+    // Payments tab
+    autoLockLabel: '🔒 القفل التلقائي',
+    autoLockNone: 'لا شيء (معطل)',
+    dayPrefix: 'يوم',
+    monthlyPriceLabel: 'السعر الشهري / قاعة',
+    priceSuffix: 'اوقية/شهر',
+    editBtn: '✎ تعديل',
+    newPricePrompt: 'السعر الجديد:',
+    monthLabel: 'الشهر',
+    statReceived: 'المستلم',
+    statRemaining: 'المتبقي',
+    statExpected: 'المتوقع',
+    paidWord: 'مدفوع',
+    unpaidWord: 'غير مدفوع',
+    collectedCaption: 'تم تحصيله',
+    searchPlaceholder: 'بحث...',
+    selectAllBtn: 'تحديد الكل',
+    markSelectedPaidBtn: 'تسجيل دفع المحددين',
+    noResults: 'لا توجد نتائج',
+    dueWord: 'مستحق',
+    receiveBtn: 'استلام',
+    confirmBulkTitle: 'تأكيد استلام الدفعات المحددة؟',
+    accountsWord: 'حساب',
+    confirmMarkPaidTitle: 'تأكيد استلام الدفعة؟',
+    confirmUnmarkTitle: 'إلغاء تسجيل هذه الدفعة؟',
+    confirmUndoBtn: 'نعم، إلغاء',
+    // Settings tab
+    whatsappLabel: 'رقم واتساب للتواصل',
+    saveBtn: 'حفظ',
+    savedMsg: '✓ تم الحفظ',
+    // Activity tab
+    usedAppLabel: 'استخدموا التطبيق',
+    noUsers: 'لا يوجد مستخدمون',
+    bookingsWord: 'حجز/حجوزات',
+    statusUsed: 'مستخدم',
+    statusNotUsed: 'غير مستخدم',
+  },
+  en: {
+    dir: 'ltr',
+    pageTitle: 'Admin Panel',
+    months: MONTH_NAMES_EN,
+    // Login
+    loginHeading: 'Admin Panel',
+    loginSub: 'Access restricted to the admin account only',
+    previewHintPrefix: 'Preview only: type',
+    fieldEmail: 'Email',
+    fieldPassword: 'Password',
+    loggingIn: 'Signing in...',
+    loginBtn: 'Sign In',
+    errorNotAuthorized: 'This email is not authorized to sign in',
+    errorWrongPassword: 'Incorrect password',
+    errorGenericPrefix: 'Error',
+    // Panel shell
+    panelTitle: 'Admin Panel',
+    logout: 'Sign Out',
+    tabAccounts: 'Accounts',
+    tabPayments: 'Payments',
+    tabActivity: 'Activity',
+    tabSettings: 'Settings',
+    // Shared
+    cancel: 'Cancel',
+    confirm: 'Confirm',
+    ok: 'OK',
+    all: 'All',
+    active: 'Active',
+    inactive: 'Inactive',
+    currency: 'MRU',
+    // Accounts tab
+    statAll: 'All',
+    statActive: 'Active',
+    statPending: 'Pending',
+    searchAccountsPlaceholder: 'Search by name or email...',
+    statusActive: 'Active',
+    statusPending: 'Pending',
+    confirmDeleteTitle: 'Delete this account permanently?',
+    deleteBtn: 'Delete',
+    resetSentTitle: 'Sent!',
+    // Payments tab
+    autoLockLabel: '🔒 Auto-Lock',
+    autoLockNone: 'None (disabled)',
+    dayPrefix: 'Day',
+    monthlyPriceLabel: 'Monthly Price / Hall',
+    priceSuffix: 'MRU/month',
+    editBtn: '✎ Edit',
+    newPricePrompt: 'New price:',
+    monthLabel: 'Month',
+    statReceived: 'Received',
+    statRemaining: 'Remaining',
+    statExpected: 'Expected',
+    paidWord: 'Paid',
+    unpaidWord: 'Unpaid',
+    collectedCaption: 'collected',
+    searchPlaceholder: 'Search...',
+    selectAllBtn: 'Select all',
+    markSelectedPaidBtn: 'Mark selected as paid',
+    noResults: 'No results',
+    dueWord: 'due',
+    receiveBtn: 'Receive',
+    confirmBulkTitle: 'Confirm receiving the selected payments?',
+    accountsWord: 'accounts',
+    confirmMarkPaidTitle: 'Confirm receiving this payment?',
+    confirmUnmarkTitle: 'Undo this payment record?',
+    confirmUndoBtn: 'Yes, undo',
+    // Settings tab
+    whatsappLabel: 'Contact WhatsApp number',
+    saveBtn: 'Save',
+    savedMsg: '✓ Saved',
+    // Activity tab
+    usedAppLabel: 'Used the app',
+    noUsers: 'No users',
+    bookingsWord: 'booking(s)',
+    statusUsed: 'Used',
+    statusNotUsed: 'Not used',
+  },
+};
+
 function fmtM(n){
   if(n < 1000000) return n.toLocaleString('en-US');
   const m = Math.floor(n / 1000000);
@@ -327,7 +502,7 @@ function fmtM(n){
 function formatPhone(p){ return (p||'').replace(/(\d{2})(?=\d)/g, '$1 ').trim(); }
 
 // ── ADMIN LOGIN ──────────────────────────────────────────────────────────
-function AdminLogin(){
+function AdminLogin({ lang, t, onLangChange }){
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -336,14 +511,14 @@ function AdminLogin(){
   const handleLogin = async () => {
     setError('');
     if(email.trim().toLowerCase() !== ADMIN_EMAIL.toLowerCase()){
-      setError('هذا البريد الإلكتروني غير مصرح له بالدخول');
+      setError(t.errorNotAuthorized);
       return;
     }
     setLoading(true);
     try {
       await auth.signInWithEmailAndPassword(email.trim(), password);
     } catch(e) {
-      setError('كلمة المرور غير صحيحة');
+      setError(t.errorWrongPassword);
     }
     setLoading(false);
   };
@@ -351,19 +526,23 @@ function AdminLogin(){
   return (
     <div className="login-screen">
       <div className="login-card">
+        <div className="login-lang-switch">
+          <button className={lang==='ar'?'active':''} onClick={()=>onLangChange('ar')}>🇲🇷 AR</button>
+          <button className={lang==='en'?'active':''} onClick={()=>onLangChange('en')}>🇬🇧 EN</button>
+        </div>
         <div className="login-avatar" style={{background:'none'}}>
           <svg viewBox="0 0 512 512" width="40" height="40"><defs><linearGradient id="bgAdmin" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stopColor="#8791E8"/><stop offset="100%" stopColor="#4D48C4"/></linearGradient></defs><rect x="0" y="0" width="512" height="512" rx="115" fill="url(#bgAdmin)"/><rect x="175" y="54" width="26" height="56" rx="13" fill="#FFFFFF"/><rect x="311" y="54" width="26" height="56" rx="13" fill="#FFFFFF"/><rect x="96" y="118" width="320" height="290" rx="32" fill="#FFFFFF"/><path d="M128,118 L384,118 A32,32 0 0 1 416,150 L416,198 L96,198 L96,150 A32,32 0 0 1 128,118 Z" fill="#4D48C4"/><circle cx="256" cy="303" r="62" fill="#E8598F"/><path d="M228,304 L248,324 L288,280" fill="none" stroke="#FFFFFF" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"/></svg>
         </div>
-        <h1>لوحة تحكم المسؤول</h1>
-        <p>الوصول مقتصر على حساب المسؤول فقط</p>
+        <h1>{t.loginHeading}</h1>
+        <p>{t.loginSub}</p>
         <p style={{background:'var(--glass)', border:'1px dashed var(--glass-border)', borderRadius:12, padding:'10px 14px', fontSize:'.76rem', marginBottom:20}}>
-          للمعاينة فقط: اكتب <strong>{ADMIN_EMAIL}</strong>
+          {t.previewHintPrefix} <strong>{ADMIN_EMAIL}</strong>
         </p>
         <form className="login-form" onSubmit={e=>{e.preventDefault();handleLogin();}}>
           {error && <div className="login-error show">{error}</div>}
-          <div className="field"><label>البريد الإلكتروني</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></div>
-          <div className="field"><label>كلمة المرور</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} required/></div>
-          <button type="submit" className="login-submit" disabled={loading}>{loading?'جارٍ الدخول...':'تسجيل الدخول'}</button>
+          <div className="field"><label>{t.fieldEmail}</label><input type="email" value={email} onChange={e=>setEmail(e.target.value)} required/></div>
+          <div className="field"><label>{t.fieldPassword}</label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} required/></div>
+          <button type="submit" className="login-submit" disabled={loading}>{loading?t.loggingIn:t.loginBtn}</button>
         </form>
       </div>
     </div>
@@ -371,7 +550,7 @@ function AdminLogin(){
 }
 
 // ── ACCOUNTS TAB ─────────────────────────────────────────────────────────
-function AccountsTab(){
+function AccountsTab({ t }){
   const [accounts, setAccounts] = useState([]);
   const [search, setSearch] = useState('');
   const [confirmModal, setConfirmModal] = useState(null); // {type, account}
@@ -403,20 +582,20 @@ function AccountsTab(){
       await auth.sendPasswordResetEmail(acc.email);
       setConfirmModal({ type:'reset-done', account: acc });
     } catch(e) {
-      alert('خطأ: ' + e.message);
+      alert(t.errorGenericPrefix + ': ' + e.message);
     }
   };
 
   return (
     <div>
       <div className="stat-grid">
-        <div className="stat"><div className="s-label">الكل</div><div className="s-value" style={{color:'var(--ink)'}}>{total}</div></div>
-        <div className="stat"><div className="s-label">نشط</div><div className="s-value" style={{color:'#1E7A63'}}>{active}</div></div>
-        <div className="stat"><div className="s-label">قيد المراجعة</div><div className="s-value" style={{color:'var(--amber)'}}>{pending}</div></div>
+        <div className="stat"><div className="s-label">{t.statAll}</div><div className="s-value" style={{color:'var(--ink)'}}>{total}</div></div>
+        <div className="stat"><div className="s-label">{t.statActive}</div><div className="s-value" style={{color:'#1E7A63'}}>{active}</div></div>
+        <div className="stat"><div className="s-label">{t.statPending}</div><div className="s-value" style={{color:'var(--amber)'}}>{pending}</div></div>
       </div>
       <div className="search-row">
         <div className="search-box">
-          <input placeholder="بحث بالاسم أو البريد الإلكتروني..." value={search} onChange={e=>setSearch(e.target.value)}/>
+          <input placeholder={t.searchAccountsPlaceholder} value={search} onChange={e=>setSearch(e.target.value)}/>
         </div>
       </div>
       {filtered.map(acc => (
@@ -425,7 +604,7 @@ function AccountsTab(){
             <div className="ar-name">{acc.hallName}</div>
             <div className="ar-meta">{acc.email} · {formatPhone(acc.phone)}</div>
           </div>
-          <span className={`account-status ${acc.active?'active':'pending'}`}>{acc.active?'نشط':'قيد المراجعة'}</span>
+          <span className={`account-status ${acc.active?'active':'pending'}`}>{acc.active?t.statusActive:t.statusPending}</span>
           <div className="ar-actions">
             <button className={acc.active?'ar-toggle-on':'ar-toggle-off'} onClick={()=>doToggle(acc)}>{acc.active?'🔒':'✅'}</button>
             <button className="ar-reset" onClick={()=>doResetPassword(acc)}>🔑</button>
@@ -438,11 +617,11 @@ function AccountsTab(){
         <div className="confirm-overlay open">
           <div className="confirm-box">
             <div className="c-icon">⚠️</div>
-            <div className="c-title">حذف هذا الحساب نهائيًا؟</div>
+            <div className="c-title">{t.confirmDeleteTitle}</div>
             <div className="c-sub">{confirmModal.account.hallName}</div>
             <div className="confirm-actions">
-              <button className="confirm-cancel" onClick={()=>setConfirmModal(null)}>إلغاء</button>
-              <button className="confirm-ok danger" onClick={()=>doDelete(confirmModal.account)}>حذف</button>
+              <button className="confirm-cancel" onClick={()=>setConfirmModal(null)}>{t.cancel}</button>
+              <button className="confirm-ok danger" onClick={()=>doDelete(confirmModal.account)}>{t.deleteBtn}</button>
             </div>
           </div>
         </div>
@@ -451,10 +630,10 @@ function AccountsTab(){
         <div className="confirm-overlay open">
           <div className="confirm-box">
             <div className="c-icon">✓</div>
-            <div className="c-title">تم الإرسال!</div>
+            <div className="c-title">{t.resetSentTitle}</div>
             <div className="c-sub">{confirmModal.account.email}</div>
             <div className="confirm-actions">
-              <button className="confirm-ok" style={{flex:1}} onClick={()=>setConfirmModal(null)}>حسنًا</button>
+              <button className="confirm-ok" style={{flex:1}} onClick={()=>setConfirmModal(null)}>{t.ok}</button>
             </div>
           </div>
         </div>
@@ -464,7 +643,7 @@ function AccountsTab(){
 }
 
 // ── PAYMENTS TAB ─────────────────────────────────────────────────────────
-function PaymentsTab(){
+function PaymentsTab({ t }){
   const [accounts, setAccounts] = useState([]);
   const [monthlyPrice, setMonthlyPrice] = useState(1500);
   const [autoLockDay, setAutoLockDay] = useState('');
@@ -473,6 +652,9 @@ function PaymentsTab(){
   const [payments, setPayments] = useState({});
   const [search, setSearch] = useState('');
   const [confirmModal, setConfirmModal] = useState(null); // {account}
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState(new Set());
+  const [bulkConfirm, setBulkConfirm] = useState(false);
 
   useEffect(() => {
     const unsub = db.collection('users').onSnapshot(snap => {
@@ -509,6 +691,15 @@ function PaymentsTab(){
     if(acc.active !== undefined) await db.collection('users').doc(acc.id).update({ active: wasPaid ? false : true });
     setConfirmModal(null);
   };
+  const markSelectedPaid = async () => {
+    const updates = {};
+    selected.forEach(id => { updates[id] = true; });
+    await db.collection('payments').doc(monthKey).set(updates, { merge: true });
+    await Promise.all([...selected].map(id => db.collection('users').doc(id).update({ active: true }).catch(()=>{})));
+    setSelected(new Set());
+    setSelecting(false);
+    setBulkConfirm(false);
+  };
   const savePrice = async (val) => {
     setMonthlyPrice(val);
     await db.collection('settings').doc('billing').set({ monthlyPrice: val }, { merge: true });
@@ -519,64 +710,120 @@ function PaymentsTab(){
   };
 
   const filtered = accounts.filter(a => !search || (a.hallName||'').toLowerCase().includes(search.toLowerCase()) || (a.phone||'').replace(/\s/g,'').includes(search.replace(/\s/g,'')));
+  const pct = accounts.length > 0 ? Math.round(paidCount / accounts.length * 100) : 0;
+  const monthLabel = t.months[payMonth];
 
   return (
     <div>
-      <div className="card">
-        <div className="label">🔒 القفل التلقائي</div>
+      <div className={`card autolock-card ${autoLockDay ? 'on' : ''}`}>
+        <div className={`autolock-label ${autoLockDay ? 'on' : 'off'}`}>{t.autoLockLabel}</div>
         <select className="lock-day-select" value={autoLockDay} onChange={e=>saveLockDay(e.target.value)}>
-          <option value="">لا شيء (معطل)</option>
-          {Array.from({length:28},(_,i)=>i+1).map(d => <option key={d} value={d}>يوم {d}</option>)}
+          <option value="">{t.autoLockNone}</option>
+          {Array.from({length:28},(_,i)=>i+1).map(d => <option key={d} value={d}>{t.dayPrefix} {d}</option>)}
         </select>
       </div>
       <div className="card">
-        <div className="label">السعر الشهري / قاعة</div>
+        <div className="label">{t.monthlyPriceLabel}</div>
         <div className="price-row">
-          <div className="p-value">{monthlyPrice.toLocaleString('en-US')} <span>اوقية/شهر</span></div>
-          <button className="edit-price-btn" onClick={()=>{ const v = prompt('السعر الجديد:', monthlyPrice); if(v) savePrice(Number(v)); }}>✎ تعديل</button>
+          <div className="p-value">{monthlyPrice.toLocaleString('en-US')} <span>{t.priceSuffix}</span></div>
+          <button className="edit-price-btn" onClick={()=>{ const v = prompt(t.newPricePrompt, monthlyPrice); if(v) savePrice(Number(v)); }}>{t.editBtn}</button>
         </div>
       </div>
       <div className="card">
-        <div className="label">الشهر</div>
+        <div className="label">{t.monthLabel}</div>
         <div className="month-nav">
           <button onClick={()=>{ if(payMonth===0){setPayMonth(11);setPayYear(y=>y-1);} else setPayMonth(m=>m-1); }}>‹</button>
-          <div className="m-label">{['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'][payMonth]} {payYear}</div>
+          <div className="m-label">{monthLabel} {payYear}</div>
           <button onClick={()=>{ if(payMonth===11){setPayMonth(0);setPayYear(y=>y+1);} else setPayMonth(m=>m+1); }}>›</button>
         </div>
       </div>
       <div className="stat-grid">
-        <div className="stat"><div className="s-label">المستلم</div><div className="s-value" style={{color:'#1E7A63'}}>{fmtM(paidCount*monthlyPrice)}</div></div>
-        <div className="stat"><div className="s-label">المتبقي</div><div className="s-value" style={{color:'var(--coral)'}}>{fmtM(unpaidCount*monthlyPrice)}</div></div>
-        <div className="stat"><div className="s-label">المتوقع</div><div className="s-value" style={{color:'var(--ink-muted)'}}>{fmtM(accounts.length*monthlyPrice)}</div></div>
+        <div className="stat"><div className="s-label">{t.statReceived}</div><div className="s-value" style={{color:'#1E7A63'}}>{fmtM(paidCount*monthlyPrice)}</div></div>
+        <div className="stat"><div className="s-label">{t.statRemaining}</div><div className="s-value" style={{color:'var(--coral)'}}>{fmtM(unpaidCount*monthlyPrice)}</div></div>
+        <div className="stat"><div className="s-label">{t.statExpected}</div><div className="s-value" style={{color:'var(--ink-muted)'}}>{fmtM(accounts.length*monthlyPrice)}</div></div>
       </div>
-      <div className="search-row"><div className="search-box"><input placeholder="بحث..." value={search} onChange={e=>setSearch(e.target.value)}/></div></div>
+      <div className="card progress-card">
+        <div className="p-top">
+          <span style={{color:'#1E7A63'}}>{paidCount} {t.paidWord}</span>
+          <span style={{color:'var(--coral)'}}>{unpaidCount} {t.unpaidWord}</span>
+        </div>
+        <div className="progress-bar"><div className="progress-fill" style={{width:`${pct}%`}}></div></div>
+        <div className="progress-caption">{pct}% {t.collectedCaption}</div>
+      </div>
+      <div className="search-row">
+        <div className="search-box"><input placeholder={t.searchPlaceholder} value={search} onChange={e=>setSearch(e.target.value)}/></div>
+        {!selecting ? (
+          <button className="icon-btn" onClick={()=>{ setSelecting(true); setSelected(new Set()); }}>☑️</button>
+        ) : (
+          <button className="icon-btn" style={{color:'var(--coral)'}} onClick={()=>{ setSelecting(false); setSelected(new Set()); }}>✕</button>
+        )}
+      </div>
+      {selecting && (
+        <div className="bulk-row">
+          <button className="bulk-select-all" onClick={()=>setSelected(new Set(filtered.filter(a=>!isPaid(a.id)).map(a=>a.id)))}>{t.selectAllBtn}</button>
+          <button
+            className={`bulk-mark-paid ${selected.size>0 ? 'enabled' : ''}`}
+            disabled={selected.size===0}
+            onClick={()=>selected.size>0 && setBulkConfirm(true)}
+          >✓ {t.markSelectedPaidBtn}{selected.size>0 ? ` (${selected.size})` : ''}</button>
+        </div>
+      )}
+      {filtered.length === 0 && <div className="empty-state">{t.noResults}</div>}
       {filtered.map(acc => {
         const paid = isPaid(acc.id);
+        const isSel = selected.has(acc.id);
+        const rowClickable = selecting && !paid;
         return (
-          <div className="account-row" key={acc.id}>
+          <div
+            className={`account-row ${rowClickable ? 'selectable' : ''}`}
+            key={acc.id}
+            onClick={rowClickable ? () => {
+              const s = new Set(selected);
+              s.has(acc.id) ? s.delete(acc.id) : s.add(acc.id);
+              setSelected(s);
+            } : undefined}
+          >
+            {selecting && (
+              <div className={`ar-checkbox ${isSel ? 'checked' : ''}`}>{isSel ? '✓' : ''}</div>
+            )}
             <div className="ar-main">
               <div className="ar-name">{acc.hallName}</div>
               <div className="ar-meta">{formatPhone(acc.phone)}</div>
-              <div className={`ar-pay-line ${paid?'paid':'unpaid'}`}>{paid?`✓ مدفوع - ${monthlyPrice.toLocaleString('en-US')} اوقية`:`* ${monthlyPrice.toLocaleString('en-US')} اوقية مستحق`}</div>
+              <div className={`ar-pay-line ${paid?'paid':'unpaid'}`}>{paid?`✓ ${t.paidWord} - ${monthlyPrice.toLocaleString('en-US')} ${t.currency}`:`* ${monthlyPrice.toLocaleString('en-US')} ${t.currency} ${t.dueWord}`}</div>
             </div>
-            <button className={`ar-pay-btn ${paid?'is-paid':'is-unpaid'}`} onClick={()=>setConfirmModal({account:acc})}>{paid?'✓ مدفوع':'استلام'}</button>
+            {!selecting && (
+              <button className={`ar-pay-btn ${paid?'is-paid':'is-unpaid'}`} onClick={()=>setConfirmModal({account:acc})}>{paid?`✓ ${t.paidWord}`:t.receiveBtn}</button>
+            )}
           </div>
         );
       })}
 
+      {bulkConfirm && (
+        <div className="confirm-overlay open">
+          <div className="confirm-box">
+            <div className="c-icon">💰</div>
+            <div className="c-title">{t.confirmBulkTitle}</div>
+            <div className="c-sub">{selected.size} {t.accountsWord} — {monthLabel} {payYear}</div>
+            <div className="confirm-actions">
+              <button className="confirm-cancel" onClick={()=>setBulkConfirm(false)}>{t.cancel}</button>
+              <button className="confirm-ok" onClick={markSelectedPaid}>{t.confirm}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {confirmModal && (() => {
         const acc = confirmModal.account;
         const willBePaid = !isPaid(acc.id);
-        const monthLabel = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'][payMonth];
         return (
           <div className="confirm-overlay open">
             <div className="confirm-box">
               <div className="c-icon">{willBePaid ? '💰' : '↩️'}</div>
-              <div className="c-title">{willBePaid ? 'تأكيد استلام الدفعة؟' : 'إلغاء تسجيل هذه الدفعة؟'}</div>
+              <div className="c-title">{willBePaid ? t.confirmMarkPaidTitle : t.confirmUnmarkTitle}</div>
               <div className="c-sub">{acc.hallName} — {monthLabel} {payYear}</div>
               <div className="confirm-actions">
-                <button className="confirm-cancel" onClick={()=>setConfirmModal(null)}>إلغاء</button>
-                <button className={willBePaid ? 'confirm-ok' : 'confirm-ok danger'} onClick={()=>togglePaid(acc)}>{willBePaid ? 'تأكيد' : 'نعم، إلغاء'}</button>
+                <button className="confirm-cancel" onClick={()=>setConfirmModal(null)}>{t.cancel}</button>
+                <button className={willBePaid ? 'confirm-ok' : 'confirm-ok danger'} onClick={()=>togglePaid(acc)}>{willBePaid ? t.confirm : t.confirmUndoBtn}</button>
               </div>
             </div>
           </div>
@@ -587,7 +834,7 @@ function PaymentsTab(){
 }
 
 // ── SETTINGS TAB (WhatsApp contact) ──────────────────────────────────────
-function AdminSettingsTab(){
+function AdminSettingsTab({ t }){
   const [wa, setWa] = useState('');
   const [saved, setSaved] = useState(false);
 
@@ -606,10 +853,10 @@ function AdminSettingsTab(){
   return (
     <div>
       <div className="card">
-        <div className="label">رقم واتساب للتواصل</div>
+        <div className="label">{t.whatsappLabel}</div>
         <div className="field" style={{marginBottom:10}}><input value={wa} onChange={e=>setWa(e.target.value)} placeholder="+222 XX XX XX XX"/></div>
-        <button className="login-submit" style={{marginTop:0}} onClick={save}>حفظ</button>
-        {saved && <div style={{textAlign:'center', marginTop:10, fontSize:'.8rem', fontWeight:700, color:'#1E7A63'}}>✓ تم الحفظ</div>}
+        <button className="login-submit" style={{marginTop:0}} onClick={save}>{t.saveBtn}</button>
+        {saved && <div style={{textAlign:'center', marginTop:10, fontSize:'.8rem', fontWeight:700, color:'#1E7A63'}}>{t.savedMsg}</div>}
       </div>
     </div>
   );
@@ -617,7 +864,7 @@ function AdminSettingsTab(){
 
 // ── ADMIN PANEL SHELL ─────────────────────────────────────────────────────
 // ── ACTIVITY TAB ─────────────────────────────────────────────────────────
-function ActivityTab(){
+function ActivityTab({ t }){
   const [accounts, setAccounts] = useState([]);
   const [bookingCounts, setBookingCounts] = useState({});
 
@@ -653,21 +900,21 @@ function ActivityTab(){
   return (
     <div>
       <div className="stat-grid">
-        <div className="stat"><div className="s-label">الكل</div><div className="s-value" style={{color:'var(--ink)'}}>{total}</div></div>
-        <div className="stat"><div className="s-label">نشط</div><div className="s-value" style={{color:'#1E7A63'}}>{enriched.filter(a=>a.active).length}</div></div>
-        <div className="stat"><div className="s-label">استخدموا التطبيق</div><div className="s-value" style={{color:'var(--teal-deep)'}}>{usedCount}</div></div>
+        <div className="stat"><div className="s-label">{t.statAll}</div><div className="s-value" style={{color:'var(--ink)'}}>{total}</div></div>
+        <div className="stat"><div className="s-label">{t.statActive}</div><div className="s-value" style={{color:'#1E7A63'}}>{enriched.filter(a=>a.active).length}</div></div>
+        <div className="stat"><div className="s-label">{t.usedAppLabel}</div><div className="s-value" style={{color:'var(--teal-deep)'}}>{usedCount}</div></div>
       </div>
-      {enriched.length === 0 && <div style={{textAlign:'center', color:'var(--ink-muted)', padding:'30px 0'}}>لا يوجد مستخدمون</div>}
+      {enriched.length === 0 && <div style={{textAlign:'center', color:'var(--ink-muted)', padding:'30px 0'}}>{t.noUsers}</div>}
       {enriched.map(acc => (
         <div className="account-row" key={acc.id}>
           <div className="ar-main">
             <div className="ar-name">{acc.hallName}</div>
             <div className="ar-meta">{acc.email}</div>
-            {acc.hasData && <div className="ar-meta" style={{marginTop:2}}>📅 {acc.bookingCount} حجز/حجوزات</div>}
+            {acc.hasData && <div className="ar-meta" style={{marginTop:2}}>📅 {acc.bookingCount} {t.bookingsWord}</div>}
           </div>
           <div style={{display:'flex', flexDirection:'column', gap:6, alignItems:'flex-end'}}>
-            <span className={`account-status ${acc.active?'active':'pending'}`}>{acc.active?'نشط':'غير نشط'}</span>
-            <span className={`account-status ${acc.hasData?'active':'pending'}`}>{acc.hasData?'مستخدم':'غير مستخدم'}</span>
+            <span className={`account-status ${acc.active?'active':'pending'}`}>{acc.active?t.active:t.inactive}</span>
+            <span className={`account-status ${acc.hasData?'active':'pending'}`}>{acc.hasData?t.statusUsed:t.statusNotUsed}</span>
           </div>
         </div>
       ))}
@@ -675,7 +922,7 @@ function ActivityTab(){
   );
 }
 
-function AdminPanel(){
+function AdminPanel({ lang, t, onLangChange }){
   const [tab, setTab] = useState('accounts');
 
   // ── AUTO-LOCK ENFORCEMENT ──────────────────────────────────────────────
@@ -726,20 +973,26 @@ function AdminPanel(){
   return (
     <div className="admin-panel open">
       <div className="admin-topbar">
-        <h2>لوحة تحكم المسؤول</h2>
-        <button onClick={()=>auth.signOut()}>تسجيل الخروج</button>
+        <h2>{t.panelTitle}</h2>
+        <div style={{display:'flex', alignItems:'center', gap:10}}>
+          <div className="lang-switch">
+            <button className={lang==='ar'?'active':''} onClick={()=>onLangChange('ar')}>AR</button>
+            <button className={lang==='en'?'active':''} onClick={()=>onLangChange('en')}>EN</button>
+          </div>
+          <button onClick={()=>auth.signOut()}>{t.logout}</button>
+        </div>
       </div>
       <div className="admin-body">
         <div className="admin-tabs">
-          <button className={tab==='accounts'?'active':''} onClick={()=>setTab('accounts')}>الحسابات</button>
-          <button className={tab==='payments'?'active':''} onClick={()=>setTab('payments')}>المدفوعات</button>
-          <button className={tab==='activity'?'active':''} onClick={()=>setTab('activity')}>النشاط</button>
-          <button className={tab==='settings'?'active':''} onClick={()=>setTab('settings')}>الإعدادات</button>
+          <button className={tab==='accounts'?'active':''} onClick={()=>setTab('accounts')}>{t.tabAccounts}</button>
+          <button className={tab==='payments'?'active':''} onClick={()=>setTab('payments')}>{t.tabPayments}</button>
+          <button className={tab==='activity'?'active':''} onClick={()=>setTab('activity')}>{t.tabActivity}</button>
+          <button className={tab==='settings'?'active':''} onClick={()=>setTab('settings')}>{t.tabSettings}</button>
         </div>
-        {tab==='accounts' && <AccountsTab/>}
-        {tab==='payments' && <PaymentsTab/>}
-        {tab==='activity' && <ActivityTab/>}
-        {tab==='settings' && <AdminSettingsTab/>}
+        {tab==='accounts' && <AccountsTab t={t}/>}
+        {tab==='payments' && <PaymentsTab t={t}/>}
+        {tab==='activity' && <ActivityTab t={t}/>}
+        {tab==='settings' && <AdminSettingsTab t={t}/>}
       </div>
     </div>
   );
@@ -748,13 +1001,26 @@ function AdminPanel(){
 // ── ROOT ──────────────────────────────────────────────────────────────────
 function Root(){
   const [authUser, setAuthUser] = useState(undefined);
+  const [lang, setLang] = useState(() => localStorage.getItem('qaaty_admin_lang') || 'ar');
+  const t = ADMIN_T[lang];
+
+  const onLangChange = (l) => {
+    setLang(l);
+    localStorage.setItem('qaaty_admin_lang', l);
+  };
+  useEffect(() => {
+    document.documentElement.dir = t.dir;
+    document.documentElement.lang = lang;
+    document.title = t.pageTitle;
+  }, [lang]);
+
   useEffect(() => {
     const unsub = auth.onAuthStateChanged(u => setAuthUser(u));
     return unsub;
   }, []);
   if(authUser === undefined) return <div className="loading-screen"><div className="spinner"></div></div>;
-  if(!authUser || authUser.email !== ADMIN_EMAIL) return <AdminLogin/>;
-  return <AdminPanel/>;
+  if(!authUser || authUser.email !== ADMIN_EMAIL) return <AdminLogin lang={lang} t={t} onLangChange={onLangChange}/>;
+  return <AdminPanel lang={lang} t={t} onLangChange={onLangChange}/>;
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<Root/>);
