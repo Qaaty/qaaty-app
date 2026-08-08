@@ -807,6 +807,127 @@ function getMonthGrid(y, m){
   return cells;
 }
 
+// Escapes user-entered data (names, phones, etc.) before it's dropped into a
+// raw HTML string for the print document, so a stray "<" or "&" in a client
+// name can't break the markup.
+function escapeHtml(str){
+  return String(str ?? '').replace(/[&<>"']/g, ch => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[ch]));
+}
+
+// ── PRINT / PDF DOCUMENT (opens in its own real browser tab, not an in-app
+// overlay) — a standalone HTML document with its own <html dir="rtl">, own
+// font load, own styling, and nothing else on the page to hide or fight with.
+// This replaces the old .print-overlay approach, which had to hide the entire
+// live app (bubbles, gradient header, RTL toggling) behind it and was the
+// source of the blank/purple renders and mirrored Arabic text.
+function openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAddress, bodyHtml }){
+  const w = window.open('', '_blank');
+  if(!w) return; // extremely unlikely since this is always called synchronously from a click, but guard just in case
+  const html = `<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${escapeHtml(title)}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ font-family:'Tajawal', sans-serif; background:#E4E1F7; color:#1E1B3A; padding:16px 0 60px; }
+  .ltr-nums{ direction:ltr; unicode-bidi:embed; display:inline-block; }
+
+  .print-topbar{
+    position:sticky; top:0; z-index:1;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 18px; margin-bottom:4px;
+    background:rgba(237,237,245,0.9); backdrop-filter:blur(10px);
+  }
+  .print-topbar button{
+    width:34px; height:34px; border-radius:50%; border:none;
+    background:#fff; color:#4D4A6B; font-size:1rem; cursor:pointer;
+    box-shadow:0 6px 16px rgba(30,27,58,.12);
+  }
+  .print-topbar .print-btn{
+    width:auto; border-radius:20px; padding:0 18px;
+    background:#4D48C4; color:#fff;
+    font-family:'Tajawal', sans-serif; font-weight:800; font-size:.82rem;
+    display:flex; align-items:center; gap:6px;
+  }
+
+  .doc{ max-width:520px; margin:10px auto 0; background:#fff; border-radius:10px; box-shadow:0 16px 40px rgba(30,27,58,.14); padding:30px 26px; }
+  .doc-header{ display:flex; align-items:center; justify-content:space-between; border-bottom:3px solid #4D48C4; padding-bottom:16px; margin-bottom:22px; }
+  .doc-header .brand{ display:flex; align-items:center; gap:10px; }
+  .doc-header .mark{ width:38px; height:38px; border-radius:50%; background:#EEEDFB; color:#4D48C4; display:flex; align-items:center; justify-content:center; font-weight:800; font-size:1.05rem; }
+  .doc-header h1{ font-size:1.02rem; font-weight:800; color:#1E1B3A; }
+  .doc-header .sub{ font-size:.7rem; color:#6B6785; margin-top:1px; }
+  .doc-header .meta{ text-align:left; font-size:.68rem; color:#6B6785; line-height:1.6; }
+
+  .doc-title{ text-align:center; margin-bottom:22px; }
+  .doc-title h2{ font-size:1.1rem; font-weight:800; color:#1E1B3A; }
+  .doc-title p{ font-size:.76rem; color:#6B6785; margin-top:3px; }
+
+  .doc table{ width:100%; border-collapse:collapse; font-size:.8rem; }
+  .doc thead th{ background:#EEEDFB; color:#4D48C4; font-weight:700; padding:9px 8px; text-align:center; border-bottom:2px solid #4D48C4; }
+  .doc tbody td{ padding:11px 8px; text-align:center; border-bottom:1px solid #E3E1F2; color:#1E1B3A; }
+  .doc tbody tr:nth-child(even){ background:#FAFAFD; }
+  .status-pill{ display:inline-block; padding:3px 10px; border-radius:12px; font-size:.68rem; font-weight:700; }
+  .status-pill.booked{ background:rgba(30,122,99,.12); color:#1E7A63; }
+  .status-pill.pending{ background:rgba(232,89,143,.12); color:#E8598F; }
+
+  .doc-footer{ margin-top:24px; padding-top:14px; border-top:1px solid #E3E1F2; display:flex; justify-content:space-between; font-size:.68rem; color:#6B6785; }
+
+  .slip{ border:2px dashed #E3E1F2; border-radius:16px; padding:24px; text-align:center; }
+  .slip .authorize{ font-size:.75rem; font-weight:700; color:#4D48C4; letter-spacing:.5px; margin-bottom:6px; }
+  .slip .date-big{ font-size:1.9rem; font-weight:800; margin-bottom:2px; color:#1E1B3A; }
+  .slip .weekday{ font-size:.8rem; color:#6B6785; margin-bottom:20px; }
+  .slip-row{ display:flex; justify-content:space-between; align-items:center; padding:13px 4px; border-bottom:1px solid #E3E1F2; text-align:right; }
+  .slip-row span:first-child{ font-size:.76rem; color:#6B6785; }
+  .slip-row span:last-child{ font-size:.9rem; font-weight:700; color:#1E1B3A; }
+  .slip .badge-big{ display:inline-block; margin-top:18px; padding:8px 20px; border-radius:20px; font-weight:800; font-size:.82rem; background:rgba(30,122,99,.12); color:#1E7A63; }
+  .slip .badge-big.pending{ background:rgba(232,89,143,.12); color:#E8598F; }
+  .slip .note{ margin-top:20px; font-size:.7rem; color:#6B6785; line-height:1.7; }
+
+  .receipt-highlight{ margin-top:16px; padding:16px; border-radius:12px; text-align:center; }
+  .receipt-highlight.paid-full{ background:rgba(30,122,99,.1); color:#1E7A63; }
+  .receipt-highlight.paid-partial{ background:rgba(232,89,143,.1); color:#E8598F; }
+  .receipt-highlight .rh-label{ font-size:.74rem; font-weight:700; }
+  .receipt-highlight .rh-value{ font-size:1.15rem; font-weight:800; margin-top:4px; }
+
+  @media print{
+    .no-print{ display:none !important; }
+    body{ background:#fff; padding:0; }
+    .doc{ box-shadow:none; margin:0; max-width:100%; }
+    *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+  }
+</style>
+</head>
+<body>
+  <div class="print-topbar no-print">
+    <button onclick="window.close()" aria-label="إغلاق">✕</button>
+    <button class="print-btn" onclick="window.print()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
+      طباعة / حفظ PDF
+    </button>
+  </div>
+  <div class="doc">
+    <div class="doc-header">
+      <div class="brand">
+        <div class="mark">${escapeHtml(badgeLetter)}</div>
+        <div><h1>${escapeHtml(hallName)}</h1><div class="sub">${escapeHtml(tagline)}</div></div>
+      </div>
+      <div class="meta">${escapeHtml(hallPhone)}<br>${escapeHtml(hallAddress)}</div>
+    </div>
+    ${bodyHtml}
+  </div>
+</body>
+</html>`;
+  w.document.open();
+  w.document.write(html);
+  w.document.close();
+}
+
 // ── LOGIN SCREEN TRANSLATIONS (AR/FR/EN) ────────────────────────────────
 const LOGIN_T = {
   ar: {
@@ -1910,10 +2031,6 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
     </div>
   );
 
-  const [monthlyExportScope, setMonthlyExportScope] = useState(null); // null | 'all' | 'YYYY-MM'
-  const [dailyExportDay, setDailyExportDay] = useState(null); // null | dateKey
-  const [receiptView, setReceiptView] = useState(null); // null | {dateKey, paymentIndex}
-  const [earningsExportScope, setEarningsExportScope] = useState(null); // null | 'all' | 'YYYY-MM'
 
   // Each overlay (.overlay/.sheet and .print-overlay) already covers the full
   // screen with position:fixed and its own internal scroll, so the page behind
@@ -1924,7 +2041,7 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
 
   const WEEKDAY_NAMES = ['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'];
 
-  const MonthlyExportModal = ({ scope, onClose }) => {
+  const openMonthlyExport = (scope) => {
     const entries = Object.entries(bookings)
       .filter(([dk]) => scope === 'all' || dk.slice(0,7) === scope)
       .map(([dk,b]) => ({ dk, ...b }))
@@ -1932,53 +2049,31 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
     const title = scope === 'all'
       ? 'جدول المناسبات — كل الأشهر'
       : (() => { const [y,m]=scope.split('-'); return `جدول المناسبات — ${MONTH_NAMES[parseInt(m,10)-1]} ${y}`; })();
-
-    return (
-      <div className="print-overlay open">
-        <div className="print-topbar">
-          <button onClick={onClose} aria-label="إغلاق">✕</button>
-          <button className="print-btn" onClick={()=>window.print()}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
-            طباعة / حفظ PDF
-          </button>
-        </div>
-        <div className="doc">
-          <div className="doc-header">
-            <div className="brand">
-              <div className="mark">{badgeLetter}</div>
-              <div><h1>{hallName}</h1><div className="sub">{tagline}</div></div>
-            </div>
-            <div className="meta">{hallPhone}<br/>{hallAddress}</div>
-          </div>
-          <div className="doc-title"><h2>{title}</h2><p>للمشاركة مع حارس القاعة</p></div>
-          <table>
-            <thead><tr><th>التاريخ</th><th>الزبون</th><th>الهاتف</th><th>الحالة</th></tr></thead>
-            <tbody>
-              {entries.map(b => {
-                const d = new Date(b.dk+'T12:00:00');
-                const paid = (b.payments||[]).reduce((a,p)=>a+p.amount,0);
-                const status = paid < b.total ? 'pending' : 'booked';
-                return (
-                  <tr key={b.dk}>
-                    <td>{d.getDate()} {MONTH_NAMES[d.getMonth()]}</td>
-                    <td>{b.clientName}</td>
-                    <td><span className="ltr-nums">{formatPhone(b.phone)}</span></td>
-                    <td><span className={`status-pill ${status}`}>محجوز</span></td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <div className="doc-footer">
-            <span>تم الإصدار بتاريخ {new Date().toLocaleDateString('en-GB')}</span>
-            <span>قاعتي</span>
-          </div>
-        </div>
-      </div>
-    );
+    const rows = entries.map(b => {
+      const d = new Date(b.dk+'T12:00:00');
+      const paid = (b.payments||[]).reduce((a,p)=>a+p.amount,0);
+      const status = paid < b.total ? 'pending' : 'booked';
+      return `<tr>
+        <td>${d.getDate()} ${MONTH_NAMES[d.getMonth()]}</td>
+        <td>${escapeHtml(b.clientName)}</td>
+        <td><span class="ltr-nums">${escapeHtml(formatPhone(b.phone))}</span></td>
+        <td><span class="status-pill ${status}">محجوز</span></td>
+      </tr>`;
+    }).join('');
+    const bodyHtml = `
+      <div class="doc-title"><h2>${escapeHtml(title)}</h2><p>للمشاركة مع حارس القاعة</p></div>
+      <table>
+        <thead><tr><th>التاريخ</th><th>الزبون</th><th>الهاتف</th><th>الحالة</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="doc-footer">
+        <span>تم الإصدار بتاريخ ${new Date().toLocaleDateString('en-GB')}</span>
+        <span>قاعتي</span>
+      </div>`;
+    openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAddress, bodyHtml });
   };
 
-  const EarningsExportModal = ({ scope, onClose }) => {
+  const openEarningsExport = (scope) => {
     const allPays = [];
     Object.entries(bookings).forEach(([dk, b]) => {
       (b.payments||[]).forEach(p => allPays.push({ ...p, clientName: b.clientName }));
@@ -1990,129 +2085,77 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
     const title = scope === 'all'
       ? 'تقرير الأرباح — كل الأشهر'
       : (() => { const [y,m]=scope.split('-'); return `تقرير الأرباح — ${MONTH_NAMES[parseInt(m,10)-1]} ${y}`; })();
-
-    return (
-      <div className="print-overlay open">
-        <div className="print-topbar">
-          <button onClick={onClose} aria-label="إغلاق">✕</button>
-          <button className="print-btn" onClick={()=>window.print()}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
-            طباعة / حفظ PDF
-          </button>
-        </div>
-        <div className="doc">
-          <div className="doc-header">
-            <div className="brand">
-              <div className="mark">{badgeLetter}</div>
-              <div><h1>{hallName}</h1><div className="sub">{tagline}</div></div>
-            </div>
-            <div className="meta">{hallPhone}<br/>{hallAddress}</div>
-          </div>
-          <div className="doc-title"><h2>{title}</h2><p>{scope==='all'?'من بداية النشاط إلى اليوم':'هذا الشهر فقط'}</p></div>
-          <table>
-            <thead><tr><th>التاريخ</th><th>الزبون</th><th>المبلغ المدفوع</th><th>طريقة الدفع</th></tr></thead>
-            <tbody>
-              {filtered.map((p,i) => {
-                const d = new Date(p.date+'T12:00:00');
-                return (
-                  <tr key={p.id||i}>
-                    <td>{d.getDate()} {MONTH_NAMES[d.getMonth()]}</td>
-                    <td>{p.clientName}</td>
-                    <td>{p.amount.toLocaleString('en-US')} اوقية</td>
-                    <td>{p.method || 'نقدا'}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-          <div style={{display:'flex', justifyContent:'space-between', padding:'14px 8px', marginTop:6, borderTop:'2px solid #E3E1F2', fontWeight:800}}>
-            <span>{scope==='all'?'المجموع الكلي':'مجموع الشهر'}</span><span>{grandTotal.toLocaleString('en-US')} اوقية</span>
-          </div>
-          <div className="doc-footer">
-            <span>تم الإصدار بتاريخ {new Date().toLocaleDateString('en-GB')}</span>
-            <span>قاعتي</span>
-          </div>
-        </div>
+    const rows = filtered.map((p,i) => {
+      const d = new Date(p.date+'T12:00:00');
+      return `<tr>
+        <td>${d.getDate()} ${MONTH_NAMES[d.getMonth()]}</td>
+        <td>${escapeHtml(p.clientName)}</td>
+        <td>${p.amount.toLocaleString('en-US')} اوقية</td>
+        <td>${escapeHtml(p.method || 'نقدا')}</td>
+      </tr>`;
+    }).join('');
+    const bodyHtml = `
+      <div class="doc-title"><h2>${escapeHtml(title)}</h2><p>${scope==='all'?'من بداية النشاط إلى اليوم':'هذا الشهر فقط'}</p></div>
+      <table>
+        <thead><tr><th>التاريخ</th><th>الزبون</th><th>المبلغ المدفوع</th><th>طريقة الدفع</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div style="display:flex; justify-content:space-between; padding:14px 8px; margin-top:6px; border-top:2px solid #E3E1F2; font-weight:800;">
+        <span>${scope==='all'?'المجموع الكلي':'مجموع الشهر'}</span><span>${grandTotal.toLocaleString('en-US')} اوقية</span>
       </div>
-    );
+      <div class="doc-footer">
+        <span>تم الإصدار بتاريخ ${new Date().toLocaleDateString('en-GB')}</span>
+        <span>قاعتي</span>
+      </div>`;
+    openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAddress, bodyHtml });
   };
 
-  const DailyExportModal = ({ dateKey, dayData, onClose }) => {
+  const openDailyExport = (dateKey) => {
+    const dayData = bookings[dateKey];
+    if(!dayData) return;
     const d = new Date(dateKey+'T12:00:00');
     const paid = (dayData.payments||[]).reduce((a,p)=>a+p.amount,0);
     const status = paid < dayData.total ? 'pending' : 'booked';
-    return (
-      <div className="print-overlay open">
-        <div className="print-topbar">
-          <button onClick={onClose} aria-label="إغلاق">✕</button>
-          <button className="print-btn" onClick={()=>window.print()}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
-            طباعة / حفظ PDF
-          </button>
-        </div>
-        <div className="doc">
-          <div className="doc-header">
-            <div className="brand">
-              <div className="mark">{badgeLetter}</div>
-              <div><h1>{hallName}</h1><div className="sub">{tagline}</div></div>
-            </div>
-            <div className="meta">{hallPhone}<br/>{hallAddress}</div>
-          </div>
-          <div className="slip">
-            <div className="authorize">تصريح دخول لليوم</div>
-            <div className="date-big">{d.getDate()} {MONTH_NAMES[d.getMonth()]} {d.getFullYear()}</div>
-            <div className="weekday">{WEEKDAY_NAMES[d.getDay()]}</div>
-            <div className="slip-row"><span>الزبون</span><span>{dayData.clientName}</span></div>
-            <div className="slip-row"><span>الهاتف</span><span className="ltr-nums">{formatPhone(dayData.phone)}</span></div>
-            <div className={`badge-big ${status}`}>{status==='pending'?'متبقي مبلغ':'محجوز'}</div>
-            <div className="note">يرجى إبراز هذا التصريح لحارس القاعة عند الوصول يوم المناسبة.</div>
-          </div>
-        </div>
-      </div>
-    );
+    const title = 'تصريح دخول لليوم';
+    const bodyHtml = `
+      <div class="slip">
+        <div class="authorize">تصريح دخول لليوم</div>
+        <div class="date-big">${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}</div>
+        <div class="weekday">${WEEKDAY_NAMES[d.getDay()]}</div>
+        <div class="slip-row"><span>الزبون</span><span>${escapeHtml(dayData.clientName)}</span></div>
+        <div class="slip-row"><span>الهاتف</span><span class="ltr-nums">${escapeHtml(formatPhone(dayData.phone))}</span></div>
+        <div class="badge-big ${status}">${status==='pending'?'متبقي مبلغ':'محجوز'}</div>
+        <div class="note">يرجى إبراز هذا التصريح لحارس القاعة عند الوصول يوم المناسبة.</div>
+      </div>`;
+    openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAddress, bodyHtml });
   };
 
-  const ReceiptModal = ({ dateKey, dayData, paymentIndex, onClose }) => {
+  const openReceipt = (dateKey, paymentIndex) => {
+    const dayData = bookings[dateKey];
+    if(!dayData) return;
     const p = (dayData.payments||[])[paymentIndex];
-    if(!p) return null;
+    if(!p) return;
     const d = new Date(dateKey+'T12:00:00');
     const paidSoFar = (dayData.payments||[]).reduce((a,x)=>a+x.amount,0);
     const remaining = dayData.total - paidSoFar;
     const isFull = remaining <= 0;
-    return (
-      <div className="print-overlay open">
-        <div className="print-topbar">
-          <button onClick={onClose} aria-label="إغلاق">✕</button>
-          <button className="print-btn" onClick={()=>window.print()}>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="15" height="15"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6z"/></svg>
-            طباعة / حفظ PDF
-          </button>
+    const title = 'إيصال دفع';
+    const bodyHtml = `
+      <div class="doc-title"><h2>إيصال دفع</h2><p>${escapeHtml(p.date)}</p></div>
+      <div>
+        <div class="slip-row"><span>الزبون</span><span>${escapeHtml(dayData.clientName)}</span></div>
+        <div class="slip-row"><span>الهاتف</span><span class="ltr-nums">${escapeHtml(formatPhone(dayData.phone))}</span></div>
+        <div class="slip-row"><span>تاريخ المناسبة</span><span>${d.getDate()} ${MONTH_NAMES[d.getMonth()]} ${d.getFullYear()}</span></div>
+        <div class="slip-row"><span>طريقة الدفع</span><span>${escapeHtml(p.method || 'نقدا')}</span></div>
+        <div class="slip-row"><span>المبلغ المدفوع (هذه الدفعة)</span><span>${p.amount.toLocaleString('en-US')} اوقية</span></div>
+        <div class="slip-row"><span>المبلغ الإجمالي للحجز</span><span>${dayData.total.toLocaleString('en-US')} اوقية</span></div>
+        <div class="slip-row"><span>مجموع المدفوع لحد الآن</span><span>${paidSoFar.toLocaleString('en-US')} اوقية</span></div>
+        <div class="receipt-highlight ${isFull?'paid-full':'paid-partial'}">
+          <div class="rh-label">${isFull?'تم سداد المبلغ بالكامل':'المبلغ المتبقي'}</div>
+          ${!isFull ? `<div class="rh-value">${remaining.toLocaleString('en-US')} اوقية</div>` : ''}
         </div>
-        <div className="doc">
-          <div className="doc-header">
-            <div className="brand">
-              <div className="mark">{badgeLetter}</div>
-              <div><h1>{hallName}</h1><div className="sub">{tagline}</div></div>
-            </div>
-            <div className="meta">{hallPhone}<br/>{hallAddress}</div>
-          </div>
-          <div className="doc-title"><h2>إيصال دفع</h2><p>{p.date}</p></div>
-          <div>
-            <div className="slip-row"><span>الزبون</span><span>{dayData.clientName}</span></div>
-            <div className="slip-row"><span>الهاتف</span><span className="ltr-nums">{formatPhone(dayData.phone)}</span></div>
-            <div className="slip-row"><span>تاريخ المناسبة</span><span>{d.getDate()} {MONTH_NAMES[d.getMonth()]} {d.getFullYear()}</span></div>
-            <div className="slip-row"><span>طريقة الدفع</span><span>{p.method || 'نقدا'}</span></div>
-            <div className="slip-row"><span>المبلغ المدفوع (هذه الدفعة)</span><span>{p.amount.toLocaleString('en-US')} اوقية</span></div>
-            <div className="slip-row"><span>المبلغ الإجمالي للحجز</span><span>{dayData.total.toLocaleString('en-US')} اوقية</span></div>
-            <div className="slip-row"><span>مجموع المدفوع لحد الآن</span><span>{paidSoFar.toLocaleString('en-US')} اوقية</span></div>
-            <div className={`receipt-highlight ${isFull?'paid-full':'paid-partial'}`}>
-              <div className="rh-label">{isFull?'تم سداد المبلغ بالكامل':'المبلغ المتبقي'}</div>
-              {!isFull && <div className="rh-value">{remaining.toLocaleString('en-US')} اوقية</div>}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+      </div>`;
+    openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAddress, bodyHtml });
   };
 
   const dateLabelFor = (dk) => {
@@ -2133,8 +2176,8 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
 
       <main>
         {page === 'home' && <HomePage/>}
-        {page === 'agenda' && <AgendaPage bookings={bookings} onSelectDay={setSelectedDay} onExport={setMonthlyExportScope}/>}
-        {page === 'earnings' && <EarningsPage bookings={bookings} onSelectDay={setSelectedDay} onExport={setEarningsExportScope}/>}
+        {page === 'agenda' && <AgendaPage bookings={bookings} onSelectDay={setSelectedDay} onExport={openMonthlyExport}/>}
+        {page === 'earnings' && <EarningsPage bookings={bookings} onSelectDay={setSelectedDay} onExport={openEarningsExport}/>}
         {page === 'settings' && <SettingsPage uid={uid} hallName={hallName} setHallName={setHallName} hallPhone={hallPhone} setHallPhone={setHallPhone} hallAddress={hallAddress} setHallAddress={setHallAddress} tagline={tagline} setTagline={setTagline} badgeLetter={badgeLetter} setBadgeLetter={setBadgeLetter} accountPhone={accountPhone} setAccountPhone={setAccountPhone} lang={lang} onLangChange={onLangChange}/>}
       </main>
 
@@ -2163,22 +2206,9 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
           onRecordPayment={recordPayment}
           onCancel={cancelBooking}
           onEditBooking={editBooking}
-          onShare={()=>setDailyExportDay(selectedDay)}
-          onOpenReceipt={(idx)=>setReceiptView({dateKey:selectedDay, paymentIndex:idx})}
+          onShare={()=>openDailyExport(selectedDay)}
+          onOpenReceipt={(idx)=>openReceipt(selectedDay, idx)}
         />
-      )}
-
-      {monthlyExportScope !== null && (
-        <MonthlyExportModal scope={monthlyExportScope} onClose={()=>setMonthlyExportScope(null)}/>
-      )}
-      {earningsExportScope !== null && (
-        <EarningsExportModal scope={earningsExportScope} onClose={()=>setEarningsExportScope(null)}/>
-      )}
-      {dailyExportDay && bookings[dailyExportDay] && (
-        <DailyExportModal dateKey={dailyExportDay} dayData={bookings[dailyExportDay]} onClose={()=>setDailyExportDay(null)}/>
-      )}
-      {receiptView && bookings[receiptView.dateKey] && (
-        <ReceiptModal dateKey={receiptView.dateKey} dayData={bookings[receiptView.dateKey]} paymentIndex={receiptView.paymentIndex} onClose={()=>setReceiptView(null)}/>
       )}
     </>
   );
