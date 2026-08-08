@@ -44,7 +44,9 @@
     background:linear-gradient(155deg, var(--mint-1) 0%, var(--mint-2) 45%, var(--teal-3) 100%);
     position:relative;
     overflow-x:hidden;
+    -webkit-user-select:none; user-select:none; -webkit-tap-highlight-color:transparent;
   }
+  input, textarea{ -webkit-user-select:text; user-select:text; }
 
   .bubble{
     position:fixed; border-radius:50%;
@@ -89,6 +91,14 @@
     border-radius:14px; padding:13px 14px; outline:none;
   }
   .field input:focus{ border-color:var(--teal-deep); background:#fff; }
+  .lock-day-select{
+    width:100%; font-family:'Tajawal', sans-serif; font-size:.92rem; font-weight:700; color:var(--ink);
+    background:#fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%234D48C4" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>') no-repeat left 14px center;
+    border:1.5px solid var(--glass-border); border-radius:14px;
+    padding:13px 40px 13px 14px; outline:none; appearance:none; -webkit-appearance:none;
+    cursor:pointer; margin-top:8px;
+  }
+  .lock-day-select:focus{ border-color:var(--teal-deep); }
   .login-error{
     display:none; background:var(--coral-soft); color:var(--coral);
     font-size:.8rem; font-weight:700; padding:10px 14px; border-radius:12px; margin-bottom:16px;
@@ -462,6 +472,7 @@ function PaymentsTab(){
   const [payYear, setPayYear] = useState(new Date().getFullYear());
   const [payments, setPayments] = useState({});
   const [search, setSearch] = useState('');
+  const [confirmModal, setConfirmModal] = useState(null); // {account}
 
   useEffect(() => {
     const unsub = db.collection('users').onSnapshot(snap => {
@@ -496,6 +507,7 @@ function PaymentsTab(){
     const wasPaid = isPaid(acc.id);
     await db.collection('payments').doc(monthKey).set({ [acc.id]: !wasPaid }, { merge: true });
     if(acc.active !== undefined) await db.collection('users').doc(acc.id).update({ active: wasPaid ? false : true });
+    setConfirmModal(null);
   };
   const savePrice = async (val) => {
     setMonthlyPrice(val);
@@ -512,7 +524,7 @@ function PaymentsTab(){
     <div>
       <div className="card">
         <div className="label">🔒 القفل التلقائي</div>
-        <select value={autoLockDay} onChange={e=>saveLockDay(e.target.value)}>
+        <select className="lock-day-select" value={autoLockDay} onChange={e=>saveLockDay(e.target.value)}>
           <option value="">لا شيء (معطل)</option>
           {Array.from({length:28},(_,i)=>i+1).map(d => <option key={d} value={d}>يوم {d}</option>)}
         </select>
@@ -546,10 +558,29 @@ function PaymentsTab(){
               <div className="ar-name">{acc.hallName}</div>
               <div className={`ar-pay-line ${paid?'paid':'unpaid'}`}>{paid?`✓ مدفوع - ${monthlyPrice.toLocaleString('en-US')} اوقية`:`* ${monthlyPrice.toLocaleString('en-US')} اوقية مستحق`}</div>
             </div>
-            <button className={`ar-pay-btn ${paid?'is-paid':'is-unpaid'}`} onClick={()=>togglePaid(acc)}>{paid?'✓ مدفوع':'استلام'}</button>
+            <button className={`ar-pay-btn ${paid?'is-paid':'is-unpaid'}`} onClick={()=>setConfirmModal({account:acc})}>{paid?'✓ مدفوع':'استلام'}</button>
           </div>
         );
       })}
+
+      {confirmModal && (() => {
+        const acc = confirmModal.account;
+        const willBePaid = !isPaid(acc.id);
+        const monthLabel = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'][payMonth];
+        return (
+          <div className="confirm-overlay open">
+            <div className="confirm-box">
+              <div className="c-icon">{willBePaid ? '💰' : '↩️'}</div>
+              <div className="c-title">{willBePaid ? 'تأكيد استلام الدفعة؟' : 'إلغاء تسجيل هذه الدفعة؟'}</div>
+              <div className="c-sub">{acc.hallName} — {monthLabel} {payYear}</div>
+              <div className="confirm-actions">
+                <button className="confirm-cancel" onClick={()=>setConfirmModal(null)}>إلغاء</button>
+                <button className={willBePaid ? 'confirm-ok' : 'confirm-ok danger'} onClick={()=>togglePaid(acc)}>{willBePaid ? 'تأكيد' : 'نعم، إلغاء'}</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
@@ -584,8 +615,113 @@ function AdminSettingsTab(){
 }
 
 // ── ADMIN PANEL SHELL ─────────────────────────────────────────────────────
+// ── ACTIVITY TAB ─────────────────────────────────────────────────────────
+function ActivityTab(){
+  const [accounts, setAccounts] = useState([]);
+  const [bookingCounts, setBookingCounts] = useState({});
+
+  useEffect(() => {
+    const unsub = db.collection('users').onSnapshot(snap => {
+      setAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    const unsubs = accounts.map(acc =>
+      db.collection('bookings').doc(acc.id).onSnapshot(snap => {
+        const count = snap.exists ? Object.keys(snap.data().data || {}).length : 0;
+        setBookingCounts(prev => ({ ...prev, [acc.id]: count }));
+      }, () => {})
+    );
+    return () => unsubs.forEach(fn => fn());
+  }, [accounts]);
+
+  const enriched = accounts.map(acc => {
+    const bookingCount = bookingCounts[acc.id] || 0;
+    return { ...acc, bookingCount, hasData: bookingCount > 0 };
+  }).sort((a, b) => {
+    if(a.hasData !== b.hasData) return (b.hasData?1:0) - (a.hasData?1:0);
+    if(!!a.active !== !!b.active) return (b.active?1:0) - (a.active?1:0);
+    return (a.hallName||'').localeCompare(b.hallName||'');
+  });
+
+  const total = enriched.length;
+  const usedCount = enriched.filter(a => a.hasData).length;
+
+  return (
+    <div>
+      <div className="stat-grid">
+        <div className="stat"><div className="s-label">الكل</div><div className="s-value" style={{color:'var(--ink)'}}>{total}</div></div>
+        <div className="stat"><div className="s-label">نشط</div><div className="s-value" style={{color:'#1E7A63'}}>{enriched.filter(a=>a.active).length}</div></div>
+        <div className="stat"><div className="s-label">استخدموا التطبيق</div><div className="s-value" style={{color:'var(--teal-deep)'}}>{usedCount}</div></div>
+      </div>
+      {enriched.length === 0 && <div style={{textAlign:'center', color:'var(--ink-muted)', padding:'30px 0'}}>لا يوجد مستخدمون</div>}
+      {enriched.map(acc => (
+        <div className="account-row" key={acc.id}>
+          <div className="ar-main">
+            <div className="ar-name">{acc.hallName}</div>
+            <div className="ar-meta">{acc.email}</div>
+            {acc.hasData && <div className="ar-meta" style={{marginTop:2}}>📅 {acc.bookingCount} حجز/حجوزات</div>}
+          </div>
+          <div style={{display:'flex', flexDirection:'column', gap:6, alignItems:'flex-end'}}>
+            <span className={`account-status ${acc.active?'active':'pending'}`}>{acc.active?'نشط':'غير نشط'}</span>
+            <span className={`account-status ${acc.hasData?'active':'pending'}`}>{acc.hasData?'مستخدم':'غير مستخدم'}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function AdminPanel(){
   const [tab, setTab] = useState('accounts');
+
+  // ── AUTO-LOCK ENFORCEMENT ──────────────────────────────────────────────
+  // The lock-day setting used to just sit in Firestore doing nothing —
+  // nothing ever read it. This runs continuously while the admin panel is
+  // open: once today's date reaches the chosen day, any account that hasn't
+  // been marked paid for the current month gets locked the exact same way
+  // a manual toggle does (active:false) — no separate mechanism, no special
+  // indicator. Since this app has no backend, it can only catch up whenever
+  // the panel is open — it can't lock someone out at the exact midnight of
+  // that day on its own.
+  const [lockDay, setLockDay] = useState(null);
+  const [lockAccounts, setLockAccounts] = useState([]);
+  const [lockPayments, setLockPayments] = useState({});
+
+  useEffect(() => {
+    const unsub = db.collection('settings').doc('billing').onSnapshot(snap => {
+      setLockDay(snap.exists && snap.data().autoLockDay ? snap.data().autoLockDay : null);
+    });
+    return unsub;
+  }, []);
+  useEffect(() => {
+    const unsub = db.collection('users').onSnapshot(snap => {
+      setLockAccounts(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    });
+    return unsub;
+  }, []);
+  useEffect(() => {
+    const now = new Date();
+    const key = `${now.getFullYear()}-${now.getMonth()}`;
+    const unsub = db.collection('payments').doc(key).onSnapshot(snap => {
+      setLockPayments(snap.exists ? snap.data() : {});
+    });
+    return unsub;
+  }, []);
+  useEffect(() => {
+    if(!lockDay) return; // auto-lock disabled
+    const today = new Date().getDate();
+    if(today < lockDay) return; // lock day hasn't arrived yet this month
+    lockAccounts.forEach(acc => {
+      const paid = !!lockPayments[acc.id];
+      if(acc.active && !paid){
+        db.collection('users').doc(acc.id).update({ active: false });
+      }
+    });
+  }, [lockDay, lockAccounts, lockPayments]);
+
   return (
     <div className="admin-panel open">
       <div className="admin-topbar">
@@ -596,10 +732,12 @@ function AdminPanel(){
         <div className="admin-tabs">
           <button className={tab==='accounts'?'active':''} onClick={()=>setTab('accounts')}>الحسابات</button>
           <button className={tab==='payments'?'active':''} onClick={()=>setTab('payments')}>المدفوعات</button>
+          <button className={tab==='activity'?'active':''} onClick={()=>setTab('activity')}>النشاط</button>
           <button className={tab==='settings'?'active':''} onClick={()=>setTab('settings')}>الإعدادات</button>
         </div>
         {tab==='accounts' && <AccountsTab/>}
         {tab==='payments' && <PaymentsTab/>}
+        {tab==='activity' && <ActivityTab/>}
         {tab==='settings' && <AdminSettingsTab/>}
       </div>
     </div>
