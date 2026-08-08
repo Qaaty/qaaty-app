@@ -1186,8 +1186,6 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
   const [editPhone, setEditPhone] = useState('');
   const [editTotal, setEditTotal] = useState('');
   const [editError, setEditError] = useState('');
-  const [dragY, setDragY] = useState(0);
-  const [dragging, setDragging] = useState(false);
   const dragStartY = React.useRef(0);
   const draggingRef = React.useRef(false);
   const dragYRef = React.useRef(0);
@@ -1199,12 +1197,13 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
   // silently no-op, which is why the background sometimes still moved.
   React.useEffect(() => {
     const el = handleWrapRef.current;
-    if(!el) return;
+    const sheetEl = sheetContentRef.current;
+    if(!el || !sheetEl) return;
 
     const onStart = (e) => {
       dragStartY.current = e.touches[0].clientY;
       draggingRef.current = true;
-      setDragging(true);
+      sheetEl.style.transition = 'none'; // direct DOM write, no re-render
     };
     const onMove = (e) => {
       if(!draggingRef.current) return;
@@ -1213,21 +1212,24 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
         e.preventDefault(); // real native prevent — stops the page behind from moving
         e.stopPropagation(); // don't also trigger the sheet's own scroll-boundary listener
         dragYRef.current = delta;
-        setDragY(delta);
+        sheetEl.style.transform = `translateY(${delta}px)`; // direct DOM write — tracks the finger every frame with no React re-render
       }
     };
     const onEnd = (e) => {
       draggingRef.current = false;
-      setDragging(false);
+      sheetEl.style.transition = 'transform .25s ease';
       if(dragYRef.current > 5){
         e.preventDefault(); // only swallow the tap when an actual drag happened
         e.stopPropagation();
-        if(dragYRef.current > 90){ onClose(); }
+        if(dragYRef.current > 90){
+          onClose();
+        } else {
+          sheetEl.style.transform = 'translateY(0px)'; // snap back
+        }
       }
       // a plain tap (dragYRef.current ~0, e.g. tapping the ✕) is left alone
       // so the browser's normal click event still fires on the close button
       dragYRef.current = 0;
-      setDragY(0);
     };
 
     el.addEventListener('touchstart', onStart, { passive:true });
@@ -1277,7 +1279,7 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
       <div
         className="sheet"
         ref={sheetContentRef}
-        style={{ transform:`translateY(${dragY}px)`, transition: dragging ? 'none' : 'transform .25s ease' }}
+        style={{ transform:'translateY(0px)', transition: 'transform .25s ease' }}
       >
         <div
           ref={handleWrapRef}
