@@ -969,6 +969,7 @@ const APP_T = {
     months:['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'],
     weekdaysFull:['الأحد','الإثنين','الثلاثاء','الأربعاء','الخميس','الجمعة','السبت'],
     weekdaysShort:['أحد','إثنين','ثلاثاء','أربعاء','خميس','جمعة','سبت'],
+    weekdaysMin:['ح','ن','ث','ر','خ','ج','س'],
     // Shared words
     cancel:'إلغاء', save:'حفظ', edit:'تعديل', currency:'اوقية', otherMethod:'أخرى', cashMethod:'نقدا',
     badgeFree:'متاح', badgePending:'متبقي مبلغ', badgeBooked:'محجوز',
@@ -1041,6 +1042,7 @@ const APP_T = {
     months:['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'],
     weekdaysFull:['Dimanche','Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi'],
     weekdaysShort:['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'],
+    weekdaysMin:['D','L','M','M','J','V','S'],
     cancel:'Annuler', save:'Enregistrer', edit:'Modifier', currency:'MRU', otherMethod:'Autre', cashMethod:'Espèces',
     badgeFree:'Disponible', badgePending:'Solde restant', badgeBooked:'Réservé',
     noBookingYet:"Aucune réservation à cette date pour l'instant.", addBookingBtn:'+ Ajouter une réservation',
@@ -1106,6 +1108,7 @@ const APP_T = {
     months:['January','February','March','April','May','June','July','August','September','October','November','December'],
     weekdaysFull:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'],
     weekdaysShort:['Sun','Mon','Tue','Wed','Thu','Fri','Sat'],
+    weekdaysMin:['S','M','T','W','T','F','S'],
     cancel:'Cancel', save:'Save', edit:'Edit', currency:'MRU', otherMethod:'Other', cashMethod:'Cash',
     badgeFree:'Available', badgePending:'Balance due', badgeBooked:'Booked',
     noBookingYet:'No booking on this date yet.', addBookingBtn:'+ Add booking for this date',
@@ -1464,7 +1467,7 @@ function DateField({ value, onChange, t }){
               <button type="button" onClick={nextMonth}>›</button>
             </div>
             <div className="date-picker-weekdays">
-              <span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span>
+              {t.weekdaysMin.map((wd,i) => <span key={i}>{wd}</span>)}
             </div>
             <div className="date-picker-grid">
               {grid.map((dt, i) => {
