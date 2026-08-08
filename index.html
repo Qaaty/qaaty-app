@@ -1455,10 +1455,10 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
             const totalNum = Number(total);
             const paidNowNum = Number(paidNow)||0;
             if(paidNowNum > totalNum){ setAddError('المبلغ المدفوع لا يمكن أن يكون أكبر من المبلغ الإجمالي.'); return; }
-            onAddBooking(dateKey, { clientName:name.trim(), phone:phone.trim(), total:totalNum, paidNow:paidNowNum, method:payMethod });
+            const freshData = onAddBooking(dateKey, { clientName:name.trim(), phone:phone.trim(), total:totalNum, paidNow:paidNowNum, method:payMethod });
             setAddError('');
             onClose();
-            if(paidNowNum > 0) onOpenReceipt(0); // a payment was made at booking time — show the receipt right away
+            if(paidNowNum > 0) onOpenReceipt(0, freshData); // a payment was made at booking time — show the receipt right away, using the just-created data directly
           }}>
             {addError && <div className="form-error">{addError}</div>}
             <div className="field"><label>اسم الزبون</label><input value={name} onChange={e=>{setName(e.target.value);setAddError('');}} required/></div>
@@ -1561,10 +1561,10 @@ function DaySheet({ dateKey, dateLabel, dayData, onClose, onAddBooking, onRecord
               if(!amt || amt <= 0){ setPayError('يرجى إدخال مبلغ صحيح.'); return; }
               if(amt > remaining){ setPayError(`المبلغ أكبر من المتبقي (${remaining.toLocaleString('en-US')} اوقية).`); return; }
               const newPaymentIndex = (dayData.payments||[]).length; // index the new payment will occupy
-              onRecordPayment(dateKey, amt, payMethod, payDate);
+              const freshData = onRecordPayment(dateKey, amt, payMethod, payDate);
               setPayAmount(''); setPayError('');
               setScreen('view');
-              onOpenReceipt(newPaymentIndex);
+              onOpenReceipt(newPaymentIndex, freshData);
             }}>
               {payError && <div className="form-error">{payError}</div>}
               <div className="field">
@@ -1942,12 +1942,14 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
       payments: paidNow > 0 ? [{ id:'p'+Date.now(), amount: paidNow, date: toKey(new Date()), method }] : [],
     }};
     saveBookings(nb);
+    return nb[dateKey]; // hand back the fresh data — bookings state won't reflect it until next render
   };
   const recordPayment = (dateKey, amount, method, paymentDate) => {
     const day = bookings[dateKey];
-    if(!day) return;
+    if(!day) return null;
     const nb = { ...bookings, [dateKey]: { ...day, payments: [...(day.payments||[]), { id:'p'+Date.now(), amount, date: paymentDate || toKey(new Date()), method }] } };
     saveBookings(nb);
+    return nb[dateKey]; // hand back the fresh data — bookings state won't reflect it until next render
   };
   const cancelBooking = (dateKey) => {
     const nb = { ...bookings };
@@ -2130,8 +2132,8 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
     openPrintDoc({ title, hallName, badgeLetter, tagline, hallPhone, hallAddress, bodyHtml });
   };
 
-  const openReceipt = (dateKey, paymentIndex) => {
-    const dayData = bookings[dateKey];
+  const openReceipt = (dateKey, paymentIndex, dayDataOverride) => {
+    const dayData = dayDataOverride || bookings[dateKey];
     if(!dayData) return;
     const p = (dayData.payments||[])[paymentIndex];
     if(!p) return;
@@ -2207,7 +2209,7 @@ function MainApp({ uid, userDoc, lang, onLangChange }){
           onCancel={cancelBooking}
           onEditBooking={editBooking}
           onShare={()=>openDailyExport(selectedDay)}
-          onOpenReceipt={(idx)=>openReceipt(selectedDay, idx)}
+          onOpenReceipt={(idx, dayDataOverride)=>openReceipt(selectedDay, idx, dayDataOverride)}
         />
       )}
     </>
