@@ -963,6 +963,7 @@ const APP_T = {
     forgotDesc:'تواصل معنا على واتساب وسنقوم بإعادة تعيين كلمة مرورك.',
     errorEmail:'البريد الإلكتروني غير صالح.', errorPassword:'كلمة المرور يجب أن تكون 6 أحرف على الأقل.',
     errorWrong:'البريد الإلكتروني أو كلمة المرور غير صحيحة.', errorExists:'هذا البريد الإلكتروني مسجل بالفعل.',
+    errorPhoneTaken:'رقم الهاتف هذا مسجل بالفعل لحساب آخر.',
     errorGeneral:'حدث خطأ. حاول مجددًا.', errorName:'يرجى إدخال اسم القاعة.', errorMatch:'كلمتا المرور غير متطابقتين.',
     loading:'جارٍ التحميل...',
     // Months / weekdays
@@ -1037,6 +1038,7 @@ const APP_T = {
     forgotDesc:'Contactez-nous sur WhatsApp et nous réinitialiserons votre mot de passe.',
     errorEmail:'Email invalide.', errorPassword:'Le mot de passe doit contenir au moins 6 caractères.',
     errorWrong:'Email ou mot de passe incorrect.', errorExists:'Cet email est déjà utilisé.',
+    errorPhoneTaken:'Ce numéro de téléphone est déjà associé à un autre compte.',
     errorGeneral:"Une erreur s'est produite. Réessayez.", errorName:'Veuillez entrer le nom de la salle.', errorMatch:'Les mots de passe ne correspondent pas.',
     loading:'Chargement...',
     months:['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'],
@@ -1103,6 +1105,7 @@ const APP_T = {
     forgotDesc:'Contact us on WhatsApp and we will reset your password for you.',
     errorEmail:'Invalid email.', errorPassword:'Password must be at least 6 characters.',
     errorWrong:'Incorrect email or password.', errorExists:'This email is already registered.',
+    errorPhoneTaken:'This phone number is already registered to another account.',
     errorGeneral:'Something went wrong. Try again.', errorName:'Please enter your hall name.', errorMatch:'Passwords do not match.',
     loading:'Loading...',
     months:['January','February','March','April','May','June','July','August','September','October','November','December'],
@@ -1198,10 +1201,11 @@ function AuthScreen({ lang, onLangChange }){
       setLoading(true);
       try {
         // Phone is the identifier users type, but Firebase Auth needs an email under the hood.
-        // We look up the account's email by phone number in Firestore first.
-        const q = await db.collection('users').where('phone', '==', loginPhone.trim()).limit(1).get();
-        if(q.empty){ setError(t.errorWrong); setLoading(false); return; }
-        const userEmail = q.docs[0].data().email;
+        // We look up the account's email via the minimal public phoneIndex entry —
+        // a direct document read, never a query against the private users collection.
+        const snap = await db.collection('phoneIndex').doc(loginPhone.trim()).get();
+        if(!snap.exists){ setError(t.errorWrong); setLoading(false); return; }
+        const userEmail = snap.data().email;
         await auth.signInWithEmailAndPassword(userEmail, loginPassword);
       } catch(e) {
         setError(t.errorWrong);
@@ -1227,20 +1231,43 @@ function AuthScreen({ lang, onLangChange }){
     if(signupPassword.length < 6) return setError(t.errorPassword);
     if(signupPassword !== signupPasswordConfirm) return setError(t.errorMatch);
     setLoading(true);
+    let cred = null;
     try {
-      const cred = await auth.createUserWithEmailAndPassword(signupEmail.trim(), signupPassword);
-      await db.collection('users').doc(cred.user.uid).set({
-        hallName: signupHallName.trim(),
-        phone: signupPhone.trim(),
-        email: signupEmail.trim().toLowerCase(),
-        active: false,
-        createdAt: new Date().toISOString(),
-        price: 1500,
+      cred = await auth.createUserWithEmailAndPassword(signupEmail.trim(), signupPassword);
+      const phone = signupPhone.trim();
+      const email = signupEmail.trim().toLowerCase();
+      // A transaction (not just a batch) is required here: it reads the
+      // phoneIndex entry first and only commits the writes if that phone
+      // number isn't already claimed by a different account — a batch can't
+      // read before writing, so it couldn't enforce this check on its own.
+      await db.runTransaction(async (tx) => {
+        const phoneRef = db.collection('phoneIndex').doc(phone);
+        const existing = await tx.get(phoneRef);
+        if(existing.exists && existing.data().uid !== cred.user.uid){
+          throw new Error('phone-taken');
+        }
+        tx.set(db.collection('users').doc(cred.user.uid), {
+          hallName: signupHallName.trim(),
+          phone,
+          email,
+          active: false,
+          createdAt: new Date().toISOString(),
+          price: 1500,
+        });
+        tx.set(phoneRef, { uid: cred.user.uid, email });
       });
       setPanel('pending');
     } catch(e) {
-      if(e.code === 'auth/email-already-in-use') setError(t.errorExists);
-      else setError(t.errorGeneral);
+      if(e.message === 'phone-taken'){
+        setError(t.errorPhoneTaken);
+        // The Auth account was already created before the conflict was found —
+        // remove it so signup doesn't leave an orphaned account with no profile.
+        if(cred && cred.user){ try{ await cred.user.delete(); }catch(_){} }
+      } else if(e.code === 'auth/email-already-in-use') {
+        setError(t.errorExists);
+      } else {
+        setError(t.errorGeneral);
+      }
     }
     setLoading(false);
   };
@@ -2010,9 +2037,46 @@ function SettingsPage({ uid, hallName, setHallName, hallPhone, setHallPhone, hal
   const [editField, setEditField] = useState(null); // which field is currently being edited
   const [temp, setTemp] = useState('');
   const [resetMsg, setResetMsg] = useState(null); // {type:'ok'|'error', text}
+  const [phoneError, setPhoneError] = useState('');
 
-  const startEdit = (field, currentValue) => { setTemp(currentValue); setEditField(field); };
+  const startEdit = (field, currentValue) => { setTemp(currentValue); setEditField(field); setPhoneError(''); };
   const saveField = async (field, setter) => {
+    if(field === 'phone'){
+      setPhoneError('');
+      // Keep the public phone→email lookup in sync: the old number must stop
+      // working for login the moment it's changed, and only the account's
+      // own current owner should ever be able to touch their own mapping.
+      // A transaction (not just a batch) is required here: it reads the
+      // target phoneIndex entry first and only commits if that number isn't
+      // already claimed by a different account — a batch can't read before
+      // writing, so it couldn't enforce this check on its own.
+      const oldPhone = accountPhone;
+      const newPhone = temp.trim();
+      try {
+        await db.runTransaction(async (tx) => {
+          const newPhoneRef = db.collection('phoneIndex').doc(newPhone);
+          if(newPhone && newPhone !== oldPhone){
+            const existing = await tx.get(newPhoneRef);
+            if(existing.exists && existing.data().uid !== uid){
+              throw new Error('phone-taken');
+            }
+          }
+          if(oldPhone && oldPhone !== newPhone){
+            tx.delete(db.collection('phoneIndex').doc(oldPhone));
+          }
+          if(newPhone){
+            tx.set(newPhoneRef, { uid, email: auth.currentUser.email });
+          }
+          tx.update(db.collection('users').doc(uid), { phone: temp });
+        });
+      } catch(e) {
+        if(e.message === 'phone-taken') setPhoneError(t.errorPhoneTaken);
+        return; // leave the field open for editing so the person can try a different number
+      }
+      setter(temp);
+      setEditField(null);
+      return;
+    }
     setter(temp);
     await db.collection('users').doc(uid).update({ [field]: temp });
     setEditField(null);
@@ -2084,6 +2148,7 @@ function SettingsPage({ uid, hallName, setHallName, hallPhone, setHallPhone, hal
             <div style={{fontSize:'.85rem', color:'var(--ink-muted)'}}>{auth.currentUser?.email}</div>
           </div>
           <FieldRow label={t.loginPhoneLabel} field="phone" value={accountPhone} setter={setAccountPhone} ltr editField={editField} temp={temp} setTemp={setTemp} startEdit={startEdit} saveField={saveField} t={t}/>
+          {phoneError && <div className="form-error" style={{marginTop:0}}>{phoneError}</div>}
         </div>
         <button className="btn-edit-light" style={{width:'100%', padding:'13px', color:'var(--coral)', background:'rgba(232,89,143,0.12)'}} onClick={()=>auth.signOut()}>{t.logoutBtn}</button>
       </div>
