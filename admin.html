@@ -86,13 +86,13 @@
   .field{ margin-bottom:16px; }
   .field label{ display:block; font-size:.78rem; font-weight:700; color:var(--ink-muted); margin-bottom:7px; }
   .field input, .field select{
-    width:100%; font-family:'Tajawal', sans-serif; font-size:.9rem; color:var(--ink);
+    width:100%; font-family:'Tajawal', sans-serif; font-size:16px; color:var(--ink);
     background:rgba(255,255,255,0.75); border:1px solid var(--glass-border);
     border-radius:14px; padding:13px 14px; outline:none;
   }
   .field input:focus{ border-color:var(--teal-deep); background:#fff; }
   .lock-day-select{
-    width:100%; font-family:'Tajawal', sans-serif; font-size:.92rem; font-weight:700; color:var(--ink);
+    width:100%; font-family:'Tajawal', sans-serif; font-size:16px; font-weight:700; color:var(--ink);
     background:#fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="%234D48C4" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg>') no-repeat left 14px center;
     border:1.5px solid var(--glass-border); border-radius:14px;
     padding:13px 40px 13px 14px; outline:none; appearance:none; -webkit-appearance:none;
@@ -171,7 +171,7 @@
   .search-box svg{ width:15px; height:15px; color:var(--ink-muted); flex-shrink:0; }
   .search-box input{
     border:none; background:transparent; outline:none;
-    font-family:'Tajawal', sans-serif; font-size:.84rem; color:var(--ink); width:100%;
+    font-family:'Tajawal', sans-serif; font-size:16px; color:var(--ink); width:100%;
   }
   .icon-btn{
     width:40px; height:40px; flex-shrink:0; border-radius:14px;
@@ -518,7 +518,7 @@ function PaymentsTab(){
     await db.collection('settings').doc('billing').set({ autoLockDay: val ? Number(val) : null }, { merge: true });
   };
 
-  const filtered = accounts.filter(a => !search || (a.hallName||'').toLowerCase().includes(search.toLowerCase()));
+  const filtered = accounts.filter(a => !search || (a.hallName||'').toLowerCase().includes(search.toLowerCase()) || (a.phone||'').replace(/\s/g,'').includes(search.replace(/\s/g,'')));
 
   return (
     <div>
@@ -556,6 +556,7 @@ function PaymentsTab(){
           <div className="account-row" key={acc.id}>
             <div className="ar-main">
               <div className="ar-name">{acc.hallName}</div>
+              <div className="ar-meta">{formatPhone(acc.phone)}</div>
               <div className={`ar-pay-line ${paid?'paid':'unpaid'}`}>{paid?`✓ مدفوع - ${monthlyPrice.toLocaleString('en-US')} اوقية`:`* ${monthlyPrice.toLocaleString('en-US')} اوقية مستحق`}</div>
             </div>
             <button className={`ar-pay-btn ${paid?'is-paid':'is-unpaid'}`} onClick={()=>setConfirmModal({account:acc})}>{paid?'✓ مدفوع':'استلام'}</button>
