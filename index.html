@@ -1293,7 +1293,7 @@ function AuthScreen({ lang, onLangChange }){
               {whatsapp && (
                 <div style={{background:'var(--coral-soft)', borderRadius:16, padding:16, marginBottom:16}}>
                   <div style={{fontSize:'.76rem', color:'var(--coral)', fontWeight:700, marginBottom:4}}>{t.pendingContact}</div>
-                  <div style={{fontSize:'1.05rem', fontWeight:800, color:'var(--ink)'}}>{whatsapp}</div>
+                  <a href={`https://wa.me/${whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noopener" style={{fontSize:'1.05rem', fontWeight:800, color:'var(--ink)', textDecoration:'none'}}>{whatsapp}</a>
                 </div>
               )}
               <button type="button" className="btn-secondary" style={{width:'100%'}} onClick={()=>{auth.signOut();setPanel('auth');}}>{t.backToLogin}</button>
@@ -1324,7 +1324,7 @@ function AuthScreen({ lang, onLangChange }){
                 {whatsapp && (
                   <>
                     <div style={{fontSize:'.85rem', fontWeight:700, color:'var(--teal-deep)'}}>WhatsApp</div>
-                    <div style={{fontSize:'1.15rem', fontWeight:800, color:'var(--ink)', marginTop:4}}>{whatsapp}</div>
+                    <a href={`https://wa.me/${whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noopener" style={{fontSize:'1.15rem', fontWeight:800, color:'var(--ink)', marginTop:4, textDecoration:'none', display:'block'}}>{whatsapp}</a>
                   </>
                 )}
               </div>
@@ -1358,7 +1358,7 @@ function AuthScreen({ lang, onLangChange }){
         {whatsapp && (
           <div className="login-contact-card">
             <div className="lcc-label">{t.contactLabel}</div>
-            <div className="lcc-number">WhatsApp: {whatsapp}</div>
+            <a href={`https://wa.me/${whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noopener" className="lcc-number" style={{textDecoration:'none', display:'block'}}>WhatsApp: {whatsapp}</a>
           </div>
         )}
 
@@ -2479,7 +2479,7 @@ function PendingGate({ whatsapp, t }){
             {whatsapp && (
               <div style={{background:'var(--coral-soft)', borderRadius:16, padding:16, marginBottom:16}}>
                 <div style={{fontSize:'.76rem', color:'var(--coral)', fontWeight:700, marginBottom:4}}>{t.pendingContact}</div>
-                <div style={{fontSize:'1.05rem', fontWeight:800, color:'var(--ink)'}}>{whatsapp}</div>
+                <a href={`https://wa.me/${whatsapp.replace(/\D/g,'')}`} target="_blank" rel="noopener" style={{fontSize:'1.05rem', fontWeight:800, color:'var(--ink)', textDecoration:'none'}}>{whatsapp}</a>
               </div>
             )}
             <button type="button" className="btn-secondary" style={{width:'100%'}} onClick={()=>auth.signOut()}>{t.logoutBtn}</button>
