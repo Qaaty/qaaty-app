@@ -138,8 +138,8 @@
   .admin-tabs::-webkit-scrollbar{ display:none; }
   .admin-tabs button{
     flex:0 0 auto; border:none; background:transparent;
-    font-family:'Tajawal', sans-serif; font-weight:700; font-size:.85rem;
-    color:var(--ink-muted); padding:10px 14px; border-radius:12px; cursor:pointer;
+    font-family:'Tajawal', sans-serif; font-weight:700; font-size:.74rem;
+    color:var(--ink-muted); padding:9px 10px; border-radius:12px; cursor:pointer;
     white-space:nowrap;
   }
   .admin-tabs button.active{ background:linear-gradient(150deg, var(--teal-3), var(--teal-deep)); color:#fff; }
@@ -272,6 +272,12 @@
   }
   .price-edit-row{ display:flex; gap:8px; }
   .price-edit-row input{ flex:1; }
+  .partner-price-input{
+    width:100%; font-family:'Tajawal', sans-serif; font-size:16px; font-weight:700; color:var(--ink);
+    background:#fff; border:1.5px solid var(--glass-border); border-radius:12px;
+    padding:11px 14px; outline:none;
+  }
+  .partner-price-input:focus{ border-color:var(--teal-deep); }
   .price-edit-row button{
     border:none; border-radius:10px; padding:0 14px; font-weight:800; cursor:pointer;
   }
@@ -1031,7 +1037,7 @@ function PartnersTab({ t }){
         <div className="label">{t.partnerPriceLabel}</div>
         {editPP ? (
           <div className="price-edit-row">
-            <input type="number" value={tmpPP} onChange={e=>setTmpPP(Number(e.target.value))} autoFocus/>
+            <input className="partner-price-input" type="number" value={tmpPP} onChange={e=>setTmpPP(Number(e.target.value))} autoFocus/>
             <button style={{background:'var(--teal-deep)', color:'#fff'}} onClick={()=>savePartnerPrice(tmpPP)}>✓</button>
             <button style={{background:'rgba(110,104,168,.12)', color:'var(--ink-muted)'}} onClick={()=>setEditPP(false)}>✕</button>
           </div>
