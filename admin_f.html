@@ -482,6 +482,7 @@ const ADMIN_T = {
     noPartnersMsg: 'لا يوجد شركاء',
     assignClientBtn: '+ إضافة عميل',
     activeHallsLabel: 'قاعة نشطة',
+    activeHallLabel: 'قاعة نشطة',
     noClientsYetMsg: 'لا يوجد عملاء بعد',
     newPartnerModalTitle: 'شريك جديد',
     assignClientModalTitle: 'إضافة عميل',
@@ -577,6 +578,7 @@ const ADMIN_T = {
     noPartnersMsg: 'No partners',
     assignClientBtn: '+ Assign client',
     activeHallsLabel: 'active halls',
+    activeHallLabel: 'active hall',
     noClientsYetMsg: 'No clients yet',
     newPartnerModalTitle: 'New partner',
     assignClientModalTitle: 'Assign client',
@@ -944,6 +946,7 @@ function PartnersTab({ t }){
   const [newPhone, setNewPhone] = useState('');
   const [assignFor, setAssignFor] = useState(null); // partner id, or null
   const [confirmModal, setConfirmModal] = useState(null); // {type:'pp'|'pu'|'pd'|'rc', partner, uid?}
+  const [dataLoaded, setDataLoaded] = useState(false); // true only once Firestore has actually reported back — prevents wiping real data with empty defaults if a button is tapped right after switching to this tab
 
   useEffect(() => {
     const unsub = db.collection('users').onSnapshot(snap => {
@@ -959,6 +962,7 @@ function PartnersTab({ t }){
         if(d.partnerPaid) setPartnerPaid(d.partnerPaid);
         if(d.partnerPrice) setPartnerPrice(d.partnerPrice);
       }
+      setDataLoaded(true); // fires whether the doc exists or not — either way we now know the real state
     });
     return unsub;
   }, []);
@@ -972,11 +976,12 @@ function PartnersTab({ t }){
   const monthLabel = t.months[payMonth];
 
   const savePartData = async (np, npp, npc) => {
+    if(!dataLoaded) return; // refuse to write until we've confirmed what's really stored — this is what prevents accidental data loss
     await db.collection('payments').doc('partners').set({
       partners: np !== undefined ? np : partners,
       partnerPaid: npp !== undefined ? npp : partnerPaid,
       partnerPrice: npc !== undefined ? npc : partnerPrice,
-    }, { merge: false });
+    }, { merge: true });
   };
 
   const doTogglePaid = async (pid) => {
@@ -1016,6 +1021,12 @@ function PartnersTab({ t }){
     setEditPP(false);
     await savePartData(partners, partnerPaid, val);
   };
+
+  if(!dataLoaded) return (
+    <div style={{display:'flex', justifyContent:'center', padding:'40px 0'}}>
+      <div style={{width:32, height:32, border:'3px solid var(--teal-deep)', borderTopColor:'transparent', borderRadius:'50%', animation:'spin .8s linear infinite'}}></div>
+    </div>
+  );
 
   return (
     <div>
@@ -1062,7 +1073,7 @@ function PartnersTab({ t }){
                 <div>
                   <div className={`partner-name ${paid?'paid':''}`}>{p.name}</div>
                   <div className="partner-meta ltr-nums">{formatPhone(p.phone)}</div>
-                  <div className="partner-meta">{activeCount} {t.activeHallsLabel}</div>
+                  <div className="partner-meta">{activeCount} {activeCount === 1 ? t.activeHallLabel : t.activeHallsLabel}</div>
                 </div>
                 <div>
                   <div className={`partner-due ${paid?'paid':''}`}>{due.toLocaleString('en-US')} {t.currency}</div>
